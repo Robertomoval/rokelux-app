@@ -110,6 +110,7 @@
     @media(max-width:620px){.signature-grid{grid-template-columns:1fr}}
 
 </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -118,16 +119,11 @@
     <div class="login-logo">ROKE<span>LUX</span></div>
     <div class="muted">PEST MANAGEMENT & BIOSECURITY</div>
     <h2>Ingresar a la aplicación</h2>
-    <p class="note" style="margin:8px 0 16px">La misma app muestra funciones distintas según el perfil: Administrativo, Técnico o Cliente.</p>
-    <div class="field"><label>Usuario</label><input id="loginUser" placeholder="Correo o usuario"></div>
-    <div class="field"><label>Contraseña</label><input id="loginPass" type="password" placeholder="Contraseña"></div>
-    <button class="btn primary" style="width:100%" onclick="login()">Ingresar</button>
-    <div class="section-title"><h2 style="font-size:14px">Accesos de demostración</h2></div>
-    <div class="demo-users">
-      <div class="demo-user"><div><b>Administrador</b><div class="muted">admin / admin123</div></div><button class="btn ghost" onclick="demoLogin('admin')">Probar</button></div>
-      <div class="demo-user"><div><b>Técnico</b><div class="muted">tecnico / tec123</div></div><button class="btn ghost" onclick="demoLogin('tecnico')">Probar</button></div>
-      <div class="demo-user"><div><b>Cliente</b><div class="muted">cliente / cli123</div></div><button class="btn ghost" onclick="demoLogin('cliente')">Probar</button></div>
-    </div>
+    <p class="note" style="margin:8px 0 16px">Acceso seguro en la nube. Usa el correo y contraseña asignados a tu perfil.</p>
+    <div class="field"><label>Correo electrónico</label><input id="loginUser" type="email" placeholder="correo@ejemplo.com" autocomplete="username"></div>
+    <div class="field"><label>Contraseña</label><input id="loginPass" type="password" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"></div>
+    <button id="loginBtn" class="btn primary" style="width:100%" onclick="login()">Ingresar</button>
+    <div id="loginStatus" class="note" style="margin-top:12px"></div>
   </div>
 </div>
 
@@ -414,10 +410,10 @@
 
     <section id="usersAdmin" class="screen">
       <div class="section-title"><h2>Usuarios y accesos</h2><span class="role-pill role-admin">Administrativo</span></div>
-      <div class="role-note">El administrador puede crear accesos para técnicos y clientes. Cada cliente debe vincularse a su ficha para que solo vea su propia información.</div>
+      <div class="role-note">El administrador puede crear y administrar accesos reales en la nube. Los clientes deben vincularse a su ficha para que solo vean su propia información.</div>
       <div class="panel" style="margin-top:12px">
         <div class="field"><label>Nombre</label><input id="uName"></div>
-        <div class="cols"><div class="field"><label>Usuario</label><input id="uUser"></div><div class="field"><label>Contraseña</label><input id="uPass"></div></div>
+        <div class="cols"><div class="field"><label>Correo electrónico</label><input id="uUser" type="email" placeholder="usuario@empresa.com"></div><div class="field"><label>Contraseña temporal</label><input id="uPass" type="password"></div></div>
         <div class="cols">
           <div class="field"><label>Rol</label><select id="uRole" onchange="toggleUserClientLink()"><option value="technician">Técnico</option><option value="client">Cliente</option><option value="admin">Administrativo</option></select></div>
           <div class="field" id="uClientWrap" style="display:none"><label>Vincular con cliente</label><select id="uClient"></select></div>
@@ -457,7 +453,7 @@
         <div class="settings-row" onclick="go('stations')" style="cursor:pointer"><div><b>Mapa de estaciones</b><div class="muted">Ubicación y estado de estaciones de roedores</div></div><span>›</span></div>
         <div class="settings-row admin-only" onclick="go('usersAdmin')" style="cursor:pointer"><div><b>Usuarios y accesos</b><div class="muted">Administrativo, técnicos y clientes</div></div><span>›</span></div>
       </div>
-      <div class="panel"><h3>Respaldo local</h3><p class="note">Esta versión de demostración guarda usuarios, permisos y datos en el dispositivo. En producción, el acceso multiusuario debe usar autenticación y permisos validados por un servidor.</p><div class="actions"><button class="btn secondary" onclick="exportData()">Exportar datos</button><label class="btn secondary" style="text-align:center">Importar<input type="file" accept=".json" style="display:none" onchange="importData(event)"></label></div></div>
+      <div class="panel"><h3>Datos en la nube</h3><p class="note">La aplicación está conectada a Supabase. Los datos autorizados se sincronizan entre los dispositivos según el perfil de cada usuario.</p><div class="actions"><button class="btn secondary" onclick="refreshCloud()">Actualizar desde la nube</button><button class="btn secondary admin-only" onclick="exportData()">Exportar respaldo local</button></div></div>
       <button class="btn danger" style="width:100%" onclick="resetApp()">Borrar datos de prueba</button>
     </section>
   </main>
@@ -468,48 +464,84 @@
 const pests=["Mosquitos","Cucarachas","Hormigas","Roedores","Moscas","Termitas","Pulgas","Garrapatas","Chinches de cama","Triatominos / vinchucas","Flebótomos","Avispas","Otros"];
 const products=["Biothrine","K-Othrine","Deltaplan","Delta Control","Insectin","Sipertrin","Cyper Shield","Contrac Block","Ratigen","Abate","Ranger","Creolina","Trampas adhesivas","Estaciones de control"];
 const $=id=>document.getElementById(id);
+const SUPABASE_URL="https://xrtiwmvvzewlglbmlufm.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_8vYzQJ29K4TmG_Z2ViR1zQ_-GTg8t9F";
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const sbSignup=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{headers:{"x-client-info":"rokelux-admin-signup"}}});
+
 const state=()=>{
   const d=JSON.parse(localStorage.getItem("rokelux_data")||'{}');
-  return {
-    clients:d.clients||[],
-    inspections:d.inspections||[],
-    services:d.services||[],
-    quotes:d.quotes||[],
-    invoices:d.invoices||[],
-    stations:d.stations||[],
-    stationMaps:d.stationMaps||[],
-    users:d.users||[],
-    requests:d.requests||[]
-  };
+  return {clients:d.clients||[],inspections:d.inspections||[],services:d.services||[],quotes:d.quotes||[],invoices:d.invoices||[],stations:d.stations||[],stationMaps:d.stationMaps||[],users:d.users||[],requests:d.requests||[]};
 };
-const save=d=>{localStorage.setItem("rokelux_data",JSON.stringify(d)); renderAll();}
+let cloudSyncTimer=null,cloudSyncBusy=false,cloudReady=false;
+const save=d=>{localStorage.setItem("rokelux_data",JSON.stringify(d));renderAll();if(cloudReady){clearTimeout(cloudSyncTimer);cloudSyncTimer=setTimeout(()=>syncCloudState(d),220)}};
+
+const clean=o=>Object.fromEntries(Object.entries(o).filter(([,v])=>v!==undefined));
+function serviceToDb(s){return clean({id:s.id,client_id:s.clientId,service_date:s.date,service_type:s.type,areas:s.areas,pests:s.pests||[],products:s.products||[],other_product:s.otherProduct||null,notes:s.notes||null,photos:s.photos||[],activity:s.activity||[],technician_name:s.technicianName||null,technician_signature:s.technicianSignature||null,received_by:s.receivedBy||null,received_by_role:s.receivedByRole||null,client_signature:s.clientSignature||null,certificate_signed_at:s.certificateSignedAt||null,created_by:s.createdBy||null})}
+function serviceFromDb(s){return {id:s.id,clientId:s.client_id,date:s.service_date,type:s.service_type||"",areas:s.areas||"",pests:s.pests||[],products:s.products||[],otherProduct:s.other_product||"",notes:s.notes||"",photos:s.photos||[],activity:s.activity||[],technicianName:s.technician_name||"",technicianSignature:s.technician_signature||"",receivedBy:s.received_by||"",receivedByRole:s.received_by_role||"",clientSignature:s.client_signature||"",certificateSignedAt:s.certificate_signed_at||""}}
+function inspectionToDb(x){return {id:x.id,client_id:x.clientId,inspection_date:x.date,address:x.address||null,installation_type:x.type||null,contact:x.contact||null,notes:x.notes||null,pests:x.pests||[],created_by:x.createdBy||null}}
+function inspectionFromDb(x){return {id:x.id,clientId:x.client_id,date:x.inspection_date,address:x.address||"",type:x.installation_type||"",contact:x.contact||"",notes:x.notes||"",pests:x.pests||[]}}
+function quoteToDb(q){return {id:q.id,client_id:q.clientId,number:q.number,quote_date:q.date,validity_days:q.validity||15,notes:q.notes||null,items:q.items||[],subtotal:Number(q.subtotal||q.total||0),total:Number(q.total||0),status:q.status||"Pendiente",client_decision_at:q.clientDecisionAt||null}}
+function quoteFromDb(q){return {id:q.id,clientId:q.client_id,number:q.number,date:q.quote_date,validity:q.validity_days,notes:q.notes||"",items:q.items||[],subtotal:Number(q.subtotal||0),total:Number(q.total||0),status:q.status||"Pendiente",clientDecisionAt:q.client_decision_at||""}}
+function invoiceToDb(f){return {id:f.id,client_id:f.clientId,number:f.number,invoice_date:f.date,items:f.items||[],subtotal:Number(f.subtotal||0),vat_rate:Number(f.vatRate||0),vat:Number(f.vat||0),total:Number(f.total||0),status:f.status||"Borrador",access_key:f.accessKey||null}}
+function invoiceFromDb(f){return {id:f.id,clientId:f.client_id,number:f.number,date:f.invoice_date,items:f.items||[],subtotal:Number(f.subtotal||0),vatRate:Number(f.vat_rate||0),vat:Number(f.vat||0),total:Number(f.total||0),status:f.status||"Borrador",accessKey:f.access_key||""}}
+function stationToDb(x){return {id:x.id,client_id:x.clientId,code:x.code,x:Number(x.x||0),y:Number(x.y||0),status:x.status||"Operativa",last_check:x.lastCheck||null,notes:x.notes||null}}
+function stationFromDb(x){return {id:x.id,clientId:x.client_id,code:x.code,x:Number(x.x||0),y:Number(x.y||0),status:x.status||"Operativa",lastCheck:x.last_check||"",notes:x.notes||""}}
+function mapToDb(x){return {id:x.id,client_id:x.clientId,site:x.site||null,background_url:x.background||null}}
+function mapFromDb(x){return {id:x.id,clientId:x.client_id,site:x.site||"",background:x.background_url||""}}
+function requestToDb(x){return {id:x.id,client_id:x.clientId,user_id:x.userId||null,request_type:x.type||null,message:x.message,photo_url:x.photo||null,status:x.status||"Nueva",created_at:x.date||undefined}}
+function requestFromDb(x){return {id:x.id,clientId:x.client_id,userId:x.user_id,type:x.request_type||"",message:x.message,photo:x.photo_url||"",status:x.status||"Nueva",date:x.created_at}}
+
+async function qTable(table){const {data,error}=await sb.from(table).select('*');if(error){console.warn(table,error.message);return []}return data||[]}
+async function loadCloudState(){
+  const [clients,inspections,services,quotes,invoices,stations,maps,requests,profiles]=await Promise.all([qTable('clients'),qTable('inspections'),qTable('services'),qTable('quotes'),qTable('invoices'),qTable('stations'),qTable('station_maps'),qTable('requests'),qTable('profiles')]);
+  const d={
+    clients:clients.map(c=>({id:c.id,name:c.name,doc:c.doc||"",phone:c.phone||"",address:c.address||"",email:c.email||"",active:c.active!==false})),
+    inspections:inspections.map(inspectionFromDb),services:services.map(serviceFromDb),quotes:quotes.map(quoteFromDb),invoices:invoices.map(invoiceFromDb),stations:stations.map(stationFromDb),stationMaps:maps.map(mapFromDb),requests:requests.map(requestFromDb),
+    users:profiles.map(p=>({id:p.user_id,name:p.full_name||"Usuario",username:p.email||"",role:p.role,clientId:p.client_id||null,active:p.active!==false}))
+  };
+  localStorage.setItem('rokelux_data',JSON.stringify(d));cloudReady=true;renderAll();return d;
+}
+async function syncCollection(table,rows,canDelete=false){
+  const {error:upErr}=rows.length?await sb.from(table).upsert(rows,{onConflict:'id'}):{error:null};if(upErr){console.warn('sync',table,upErr.message);return}
+  if(canDelete){const {data:existing,error}=await sb.from(table).select('id');if(!error){const keep=new Set(rows.map(x=>x.id));const stale=(existing||[]).filter(x=>!keep.has(x.id)).map(x=>x.id);if(stale.length)await sb.from(table).delete().in('id',stale)}}
+}
+async function syncCloudState(d){
+  if(cloudSyncBusy||!sessionUser)return;cloudSyncBusy=true;
+  try{
+    const admin=isAdmin(),tech=isTech();
+    if(admin)await syncCollection('clients',d.clients.map(c=>({id:c.id,name:c.name,doc:c.doc||null,phone:c.phone||null,address:c.address||null,email:c.email||null,active:c.active!==false})),true);
+    if(admin||tech){await syncCollection('inspections',d.inspections.map(inspectionToDb),admin);await syncCollection('services',d.services.map(serviceToDb),admin);await syncCollection('stations',d.stations.map(stationToDb),admin);await syncCollection('station_maps',d.stationMaps.map(mapToDb),admin)}
+    if(admin){await syncCollection('quotes',d.quotes.map(quoteToDb),true);await syncCollection('invoices',d.invoices.map(invoiceToDb),true)}
+    if(isClient())await syncCollection('requests',d.requests.map(requestToDb),false);
+  }finally{cloudSyncBusy=false}
+}
+async function refreshCloud(){const b=document.querySelector('[onclick="refreshCloud()"]');if(b)b.disabled=true;try{await loadCloudState();alert('Datos actualizados desde la nube.')}finally{if(b)b.disabled=false}}
 
 let sessionUser=null;
-function ensureDemoUsers(){
-  const d=state();
-  if(!d.users.length){
-    const firstClient=d.clients[0];
-    d.users=[
-      {id:crypto.randomUUID(),name:"Administración ROKELUX",username:"admin",password:"admin123",role:"admin",clientId:null,active:true},
-      {id:crypto.randomUUID(),name:"Técnico ROKELUX",username:"tecnico",password:"tec123",role:"technician",clientId:null,active:true},
-      {id:crypto.randomUUID(),name:firstClient?firstClient.name:"Cliente ROKELUX",username:"cliente",password:"cli123",role:"client",clientId:firstClient?firstClient.id:null,active:true}
-    ];
-    localStorage.setItem("rokelux_data",JSON.stringify(d));
+async function fetchMyProfile(authUser){
+  const {data,error}=await sb.from('profiles').select('user_id,full_name,role,client_id,active').eq('user_id',authUser.id).maybeSingle();
+  if(error)throw error;if(!data)throw new Error('Tu cuenta no tiene un perfil ROKELUX asignado.');if(data.active===false)throw new Error('Tu cuenta está inactiva. Contacta al administrador.');
+  if(data.role==='client'){
+    if(!data.client_id)throw new Error('Tu cuenta no está vinculada a un cliente activo.');
+    const {data:c}=await sb.from('clients').select('id,active').eq('id',data.client_id).maybeSingle();
+    if(!c||c.active===false)throw new Error('El cliente vinculado está suspendido. Contacta al administrador.');
   }
+  return {id:data.user_id,name:data.full_name||authUser.email,username:authUser.email||'',role:data.role,clientId:data.client_id||null,active:true};
 }
+async function login(){
+  const email=$('loginUser').value.trim(),password=$('loginPass').value,btn=$('loginBtn'),status=$('loginStatus');if(!email||!password)return alert('Ingresa correo y contraseña.');
+  btn.disabled=true;status.textContent='Verificando acceso…';
+  try{const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;sessionUser=await fetchMyProfile(data.user);status.textContent='Cargando información…';await loadCloudState();$('loginOverlay').style.display='none';applyRole();renderAll();}
+  catch(err){await sb.auth.signOut();status.textContent='';alert('No se pudo ingresar: '+(err.message||err));}
+  finally{btn.disabled=false}
+}
+async function restoreSession(){
+  const {data}=await sb.auth.getSession();if(!data.session)return;
+  try{sessionUser=await fetchMyProfile(data.session.user);await loadCloudState();$('loginOverlay').style.display='none';applyRole();renderAll()}catch(e){await sb.auth.signOut();sessionUser=null}
+}
+async function logout(){sessionUser=null;cloudReady=false;await sb.auth.signOut();$('loginOverlay').style.display='grid';$('loginPass').value='';$('loginStatus').textContent='';window.scrollTo(0,0)}
 function roleLabel(r){return r==="admin"?"Administrativo":r==="technician"?"Técnico":"Cliente"}
-function demoLogin(username){$("loginUser").value=username;$("loginPass").value=username==="admin"?"admin123":username==="tecnico"?"tec123":"cli123";login()}
-function login(){
-  ensureDemoUsers();const d=state(),u=d.users.find(x=>x.active!==false&&x.username===$("loginUser").value.trim()&&x.password===$("loginPass").value);
-  if(!u)return alert("Usuario o contraseña incorrectos, o la cuenta está inactiva.");
-  if(u.role==="client"){const c=d.clients.find(x=>x.id===u.clientId);if(!c||c.active===false)return alert("El cliente vinculado se encuentra suspendido. Contacta al administrador.");}
-  sessionUser=u;sessionStorage.setItem("rokelux_session",u.id);$("loginOverlay").style.display="none";applyRole();renderAll();
-}
-function restoreSession(){
-  ensureDemoUsers();const id=sessionStorage.getItem("rokelux_session");if(!id)return;
-  const u=state().users.find(x=>x.id===id&&x.active!==false);if(u){sessionUser=u;$("loginOverlay").style.display="none";applyRole()}
-}
-function logout(){sessionUser=null;sessionStorage.removeItem("rokelux_session");$("loginOverlay").style.display="grid";$("loginPass").value="";window.scrollTo(0,0)}
 function isAdmin(){return sessionUser?.role==="admin"}function isTech(){return sessionUser?.role==="technician"}function isClient(){return sessionUser?.role==="client"}
 function canEditTechnical(){return isAdmin()||isTech()}
 function currentClientId(){return isClient()?sessionUser.clientId:null}
@@ -608,10 +640,12 @@ function setClientStatus(id,active){
   if(!isAdmin())return alert("Solo el perfil administrativo puede activar o suspender clientes.");
   const d=state(),c=d.clients.find(x=>x.id===id);if(!c)return;c.active=!!active;save(d);renderAll();
 }
-function deleteClient(id){
+async function deleteClient(id){
   if(!isAdmin())return alert("Solo el perfil administrativo puede eliminar clientes.");
   const d=state(),c=d.clients.find(x=>x.id===id);if(!c)return;
   if(!confirm(`¿Eliminar definitivamente a "${c.name}"? También se eliminarán sus registros relacionados.`))return;
+  const {error:pErr}=await sb.from('profiles').delete().eq('client_id',id);if(pErr)return alert('No se pudieron retirar los accesos vinculados: '+pErr.message);
+  const {error}=await sb.from('clients').delete().eq('id',id);if(error)return alert('No se pudo eliminar: '+error.message);
   d.clients=d.clients.filter(x=>x.id!==id);
   d.inspections=(d.inspections||[]).filter(x=>x.clientId!==id);
   d.services=(d.services||[]).filter(x=>x.clientId!==id);
@@ -974,7 +1008,7 @@ function getCurrentMap(){
 function saveMapMeta(){
   const d=state(),cid=$("mClient")?.value;if(!cid)return;
   let m=d.stationMaps.find(x=>x.clientId===cid);if(!m){m={id:crypto.randomUUID(),clientId:cid,site:"",background:""};d.stationMaps.push(m)}
-  m.site=$("mSite").value;localStorage.setItem("rokelux_data",JSON.stringify(d));
+  m.site=$("mSite").value;save(d);
 }
 function setMapBackground(e){
   const file=e.target.files[0];if(!file||!$("mClient").value)return alert("Selecciona primero un cliente.");
@@ -1051,40 +1085,49 @@ function renderClientQuotes(){
   const el=$("clientQuoteList");if(!el||!isClient())return;const arr=clientQuotes();
   el.innerHTML=arr.length?[...arr].reverse().map(q=>`<div class="item"><div class="avatar">💵</div><div class="meta"><b>${esc(q.number)} · ${money(q.total)}</b><small>${fmt(q.date)} · ${esc(q.status)}</small><div class="quote-actions">${!["Aceptada","Rechazada"].includes(q.status)?`<button class="btn primary" onclick="clientQuoteDecision('${q.id}','Aceptada')">Aprobar</button><button class="btn ghost" onclick="clientQuoteDecision('${q.id}','Rechazada')">Rechazar</button>`:""}</div></div><button class="btn ghost" onclick="printQuote('${q.id}')">PDF</button></div>`).join(""):`<div class="empty">No tienes cotizaciones.</div>`;
 }
-function clientQuoteDecision(id,status){
+async function clientQuoteDecision(id,status){
   const d=state(),q=d.quotes.find(x=>x.id===id&&x.clientId===currentClientId());if(!q)return;
   if(!confirm(`¿Deseas marcar esta cotización como ${status.toLowerCase()}?`))return;
-  q.status=status;q.clientDecisionAt=new Date().toISOString();save(d);renderClientQuotes();renderClientPortal()
+  const when=new Date().toISOString();const {error}=await sb.from('quotes').update({status,client_decision_at:when}).eq('id',id);if(error)return alert(error.message);
+  q.status=status;q.clientDecisionAt=when;localStorage.setItem('rokelux_data',JSON.stringify(d));renderClientQuotes();renderClientPortal()
 }
+
 function renderClientInvoices(){
   const el=$("clientInvoiceList");if(!el||!isClient())return;const arr=clientInvoices();
   el.innerHTML=arr.length?[...arr].reverse().map(f=>`<div class="item"><div class="avatar">🧾</div><div class="meta"><b>${esc(f.number)} · ${money(f.total)}</b><small>${fmt(f.date)} · ${esc(f.status)}</small></div><button class="btn primary" onclick="printInvoice('${f.id}')">Ver / PDF</button></div>`).join(""):`<div class="empty">No tienes facturas registradas.</div>`;
 }
 function submitClientRequest(){
   if(!isClient())return;const msg=$("reqMessage").value.trim();if(!msg)return alert("Escribe un mensaje.");
-  const d=state(),file=$("reqPhoto").files[0],finish=(photo)=>{d.requests.push({id:crypto.randomUUID(),clientId:currentClientId(),userId:sessionUser.id,type:$("reqType").value,message:msg,photo:photo||"",date:new Date().toISOString(),status:"Nueva"});save(d);$("reqMessage").value="";$("reqPhoto").value="";alert("Solicitud enviada a ROKELUX.");renderClientPortal()};
+  const file=$("reqPhoto").files[0],finish=async(photo)=>{const row={id:crypto.randomUUID(),client_id:currentClientId(),user_id:sessionUser.id,request_type:$("reqType").value,message:msg,photo_url:photo||null,status:"Nueva"};const {error}=await sb.from('requests').insert(row);if(error)return alert(error.message);$("reqMessage").value="";$("reqPhoto").value="";await loadCloudState();alert("Solicitud enviada a ROKELUX.")};
   if(file){const r=new FileReader();r.onload=()=>finish(r.result);r.readAsDataURL(file)}else finish("")
 }
+
 function toggleUserClientLink(){$("uClientWrap").style.display=$("uRole").value==="client"?"block":"none"}
 
-function saveUser(){
+async function saveUser(){
   if(!isAdmin())return alert("Solo el administrador puede crear usuarios.");
-  const d=state(),name=$("uName").value.trim(),username=$("uUser").value.trim(),password=$("uPass").value,role=$("uRole").value,clientId=role==="client"?$("uClient").value:null,active=$("uActive").value==="true";
-  if(!name||!username||!password)return alert("Completa nombre, usuario y contraseña.");
-  if(role==="client"&&!clientId)return alert("Vincula el usuario a un cliente.");
-  if(d.users.some(x=>x.username===username))return alert("Ese usuario ya existe.");
-  d.users.push({id:crypto.randomUUID(),name,username,password,role,clientId,active});
-  save(d);["uName","uUser","uPass"].forEach(id=>$(id).value="");$("uActive").value="true";renderUsers()
+  const d=state(),name=$("uName").value.trim(),email=$("uUser").value.trim().toLowerCase(),password=$("uPass").value,role=$("uRole").value,clientId=role==="client"?$("uClient").value:null,active=$("uActive").value==="true";
+  if(!name||!email||!password)return alert("Completa nombre, correo y contraseña temporal.");if(role==="client"&&!clientId)return alert("Vincula el usuario a un cliente.");
+  const {data,error}=await sbSignup.auth.signUp({email,password,options:{data:{full_name:name}}});if(error)return alert("No se pudo crear el acceso: "+error.message);if(!data.user)return alert("Supabase no devolvió el nuevo usuario.");
+  const {error:pErr}=await sb.from('profiles').insert({user_id:data.user.id,full_name:name,role,client_id:clientId,active});if(pErr)return alert("El usuario se creó en Authentication, pero no pudo asignarse el perfil: "+pErr.message);
+  await loadCloudState();["uName","uUser","uPass"].forEach(id=>$(id).value="");$("uActive").value="true";alert("Usuario creado. Si Supabase exige confirmación de correo, el usuario deberá confirmarlo antes de ingresar.")
 }
-function toggleUserActive(id){
-  if(!isAdmin())return alert("Solo el administrador puede activar o inactivar usuarios.");
-  const d=state(),u=d.users.find(x=>x.id===id);if(!u)return;
-  if(sessionUser?.id===u.id&&u.active!==false)return alert("No puedes inactivar tu propia cuenta mientras estás conectado.");
-  u.active=u.active===false?true:false;save(d);renderUsers();
+async function toggleUserActive(id){if(!isAdmin())return; if(sessionUser?.id===id)return alert("No puedes suspender tu propia cuenta.");const u=state().users.find(x=>x.id===id);if(!u)return;const {error}=await sb.from('profiles').update({active:!(u.active!==false)}).eq('user_id',id);if(error)return alert(error.message);await loadCloudState()}
+async function editUserProfile(id){
+  if(!isAdmin())return;const d=state(),u=d.users.find(x=>x.id===id);if(!u)return;
+  const name=prompt('Nombre del perfil:',u.name);if(name===null)return;
+  const role=prompt('Rol: admin / technician / client',u.role);if(role===null||!['admin','technician','client'].includes(role))return alert('Rol no válido.');
+  let clientId=null;if(role==='client'){clientId=prompt('ID del cliente vinculado:',u.clientId||'');if(!clientId)return alert('El cliente requiere un ID vinculado.');}
+  const {error}=await sb.from('profiles').update({full_name:name,role,client_id:clientId}).eq('user_id',id);if(error)return alert(error.message);await loadCloudState();
+}
+async function deleteUserProfile(id){
+  if(!isAdmin())return;if(sessionUser?.id===id)return alert('No puedes eliminar tu propio perfil administrativo.');const u=state().users.find(x=>x.id===id);if(!u)return;
+  if(!confirm(`¿Eliminar el perfil de acceso de ${u.name}? La identidad de Authentication quedará sin permisos ROKELUX.`))return;
+  const {error}=await sb.from('profiles').delete().eq('user_id',id);if(error)return alert(error.message);await loadCloudState();
 }
 function renderUsers(){
   const el=$("userList");if(!el||!isAdmin())return;const d=state();
-  el.innerHTML=d.users.map(u=>{const c=u.clientId?d.clients.find(x=>x.id===u.clientId):null,active=u.active!==false;return `<div class="item"><div class="avatar">${u.role==="admin"?"🛡️":u.role==="technician"?"🧰":"👤"}</div><div class="meta"><b>${esc(u.name)}</b><small>@${esc(u.username)} · ${roleLabel(u.role)}${c?` · ${esc(c.name)}`:""} · <b>${active?"Activo":"Inactivo"}</b></small></div><span class="role-pill role-${u.role==="technician"?"tech":u.role}">${roleLabel(u.role)}</span><button class="btn ${active?"secondary":"primary"}" onclick="toggleUserActive('${u.id}')">${active?"Inactivar":"Activar"}</button></div>`}).join("")
+  el.innerHTML=d.users.length?d.users.map(u=>{const c=u.clientId?d.clients.find(x=>x.id===u.clientId):null,active=u.active!==false;return `<div class="item"><div class="avatar">${u.role==="admin"?"🛡️":u.role==="technician"?"🧰":"👤"}</div><div class="meta"><b>${esc(u.name)}</b><small>${u.username?esc(u.username)+' · ':''}${roleLabel(u.role)}${c?` · ${esc(c.name)}`:""} · <b>${active?"Activo":"Inactivo"}</b></small></div><div class="actions"><button class="btn ghost" onclick="editUserProfile('${u.id}')">Modificar</button><button class="btn ${active?"secondary":"primary"}" onclick="toggleUserActive('${u.id}')">${active?"Inactivar":"Activar"}</button><button class="btn ghost" onclick="deleteUserProfile('${u.id}')">Eliminar</button></div></div>`}).join(""):`<div class="empty">No hay perfiles registrados.</div>`
 }
 
 function renderReportSelect(){
@@ -1226,6 +1269,12 @@ function printClientReport(){
   const w=window.open("","_blank");w.document.write(report);w.document.close();
 }
 function renderAll(){renderHome();renderClients();renderSelects();renderHistory();renderCerts();renderCalendar();renderReportSelect();renderReport();renderBusinessSelects();renderQuotes();renderInvoices();renderServiceReports();renderStationMap();renderClientPortal();renderClientDocs();renderClientQuotes();renderClientInvoices();renderUsers();renderSignatureServiceSelect()}
-document.addEventListener("DOMContentLoaded",()=>{initDemo();ensureDemoUsers();makeChips("inspectionPests",pests,"ip");makeChips("servicePests",pests,"sp");makeChips("products",products,"pr");addQuoteItem();addInvoiceItem();const now=new Date(),t=now.toISOString().slice(0,10),from=new Date(now.getFullYear(),now.getMonth()-5,1).toISOString().slice(0,10);$("iDate").value=t;$("sDate").value=t;if($("qDate"))$("qDate").value=t;if($("fDate"))$("fDate").value=t;if($("rFrom"))$("rFrom").value=from;if($("rTo"))$("rTo").value=t;setupSignaturePad("sigTechCanvas","tech");setupSignaturePad("sigClientCanvas","client");restoreSession();renderAll();if("serviceWorker"in navigator)navigator.serviceWorker.register("service-worker.js").catch(()=>{})});
+document.addEventListener("DOMContentLoaded",async()=>{
+  makeChips("inspectionPests",pests,"ip");makeChips("servicePests",pests,"sp");makeChips("products",products,"pr");addQuoteItem();addInvoiceItem();
+  const now=new Date(),t=now.toISOString().slice(0,10),from=new Date(now.getFullYear(),now.getMonth()-5,1).toISOString().slice(0,10);$("iDate").value=t;$("sDate").value=t;if($("qDate"))$("qDate").value=t;if($("fDate"))$("fDate").value=t;if($("rFrom"))$("rFrom").value=from;if($("rTo"))$("rTo").value=t;
+  setupSignaturePad("sigTechCanvas","tech");setupSignaturePad("sigClientCanvas","client");
+  renderAll();await restoreSession();
+  if("serviceWorker"in navigator)navigator.serviceWorker.register("service-worker.js").catch(()=>{});
+});
 </script>
 </body></html>
