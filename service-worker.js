@@ -1,0 +1,1 @@
+const CACHE='rokelux-v21';const ASSETS=['./','./index.html','./manifest.webmanifest','./logo.png','./icon.png','./certificate_template.png'];self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));

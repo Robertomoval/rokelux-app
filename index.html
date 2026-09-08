@@ -1,0 +1,1231 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080b09">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>ROKELUX</title>
+  <style>
+    :root{--bg:#080b09;--card:#111713;--card2:#151d17;--green:#8cff00;--green2:#66cc00;--text:#f4f6f4;--muted:#9da8a0;--line:#253128;--white:#fff;--danger:#ff5b5b}
+    *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#050806,#0b100c 45%,#060806);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input,select,textarea{font:inherit}.app{min-height:100vh;padding-bottom:82px}.shell{max-width:760px;margin:auto}
+    header{position:sticky;top:0;z-index:30;background:rgba(8,11,9,.92);backdrop-filter:blur(18px);border-bottom:1px solid #1d261f;padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+    .brand{display:flex;align-items:center;gap:10px}.brand img{width:132px;height:44px;object-fit:contain;object-position:left center;filter:brightness(1.08)} .badge{font-size:11px;color:var(--green);font-weight:800}
+    .content{padding:16px}.hero{background:radial-gradient(circle at 85% 0%,rgba(140,255,0,.22),transparent 28%),linear-gradient(135deg,#101a12,#090d0a 65%);border:1px solid #243326;border-radius:24px;padding:20px;box-shadow:0 12px 50px rgba(0,0,0,.35)}
+    h1,h2,h3,p{margin:0}.hero h1{font-size:30px;line-height:1.05}.hero h1 span{color:var(--green)}.hero p{color:#b8c2bb;margin-top:8px}.actions{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:18px}
+    .btn{border:0;border-radius:14px;padding:13px 14px;font-weight:800;cursor:pointer}.btn.primary{background:linear-gradient(135deg,var(--green),#60d000);color:#071007}.btn.secondary{background:#171f19;color:white;border:1px solid #2a372d}.btn.ghost{background:transparent;border:1px solid #39483d;color:#dce3de}.btn.danger{background:#351515;color:#ffb1b1}
+    .section-title{display:flex;justify-content:space-between;align-items:center;margin:22px 2px 10px}.section-title h2{font-size:18px}.muted{color:var(--muted);font-size:13px}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.card{background:linear-gradient(180deg,#121914,#0e140f);border:1px solid #233025;border-radius:18px;padding:14px}
+    .stat b{font-size:28px;color:var(--green);display:block}.stat span{color:#aab5ac;font-size:12px}.service-icons{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}.service-icons div{text-align:center;color:#cfd7d1;font-size:11px}.ico{height:48px;border:1px solid #314034;border-radius:14px;display:grid;place-items:center;font-size:24px;margin-bottom:6px;background:#0f1510}
+    .list{display:flex;flex-direction:column;gap:9px}.item{display:flex;align-items:center;gap:12px;padding:13px;border-radius:16px;background:#111713;border:1px solid #223025}.avatar{width:42px;height:42px;border-radius:13px;background:#eff7ee;color:#111;display:grid;place-items:center;font-size:20px}.item .meta{flex:1}.item .meta b{display:block}.item .meta small{color:#9da8a0}.tag{border-radius:999px;padding:5px 8px;background:#213a21;color:#b9ff97;font-size:11px;font-weight:800}
+    .field{margin-bottom:13px}.field label{display:block;font-size:12px;color:#b7c2b9;font-weight:700;margin:0 0 6px 2px}.field input,.field select,.field textarea{width:100%;background:#f5f7f5;color:#111;border:0;border-radius:12px;padding:13px;outline:none}.field textarea{min-height:92px;resize:vertical}.cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .panel{background:#101612;border:1px solid #263329;border-radius:20px;padding:15px;margin-bottom:12px}.panel h3{font-size:15px;margin-bottom:12px}.chips{display:flex;flex-wrap:wrap;gap:8px}.chip input{display:none}.chip label{display:inline-flex;gap:6px;align-items:center;padding:9px 11px;border-radius:999px;border:1px solid #344238;color:#d8dfda;font-size:12px}.chip input:checked+label{background:var(--green);color:#071007;border-color:var(--green)}
+    .photos{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.photo{aspect-ratio:1.2;background:#151b17;border:1px dashed #3b4b3f;border-radius:14px;overflow:hidden;display:grid;place-items:center;color:#8d988f}.photo img{width:100%;height:100%;object-fit:cover}
+    .bottom{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(7,10,8,.96);backdrop-filter:blur(18px);border-top:1px solid #202a22;padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));display:flex;justify-content:center}.bottom-inner{width:min(760px,100%);display:grid;grid-template-columns:repeat(5,1fr);gap:4px}.nav{background:transparent;color:#9ba69d;border:0;border-radius:12px;padding:7px 4px;font-size:10px}.nav span{display:block;font-size:20px}.nav.active{color:var(--green);background:#121a13}
+    .screen{display:none}.screen.active{display:block}.toolbar{display:flex;gap:8px;margin-bottom:14px}.toolbar input{flex:1;background:#161e18;border:1px solid #2c392f;color:white;border-radius:13px;padding:12px}.plus{width:46px;height:46px;border-radius:50%;background:var(--green);color:#081008;border:0;font-size:26px;font-weight:800}
+    .fab{position:fixed;right:20px;bottom:92px;width:56px;height:56px;border-radius:50%;background:var(--green);color:#071007;border:0;font-size:29px;box-shadow:0 10px 30px rgba(118,255,0,.25)}
+    .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.calday{aspect-ratio:1;border-radius:12px;background:#111713;display:grid;place-items:center;color:#ccd4ce;font-size:12px}.calday.has{background:#21451d;color:#caffad;border:1px solid #5bd331}.calday.today{outline:2px solid var(--green)}
+    .cert{background:white;color:#111;border-radius:18px;padding:16px}.cert h3{color:#3f8c00}.cert small{color:#555}.cert-preview{height:220px;border-radius:12px;background:linear-gradient(135deg,#08100a 0 29%,white 29%);border:1px solid #ddd;position:relative;overflow:hidden;padding:16px}.cert-preview .brandline{font-weight:900;font-size:20px;color:white}.cert-preview .brandline span{color:#7fe600}.cert-preview .ctitle{position:absolute;left:18px;top:78px;font-size:20px;font-weight:900;color:#111}.cert-preview .ctitle span{display:block;color:#4e9f00;font-size:13px}.cert-preview .tiny{position:absolute;left:18px;right:18px;top:125px;font-size:9px;color:#333}
+    .settings-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid #273128}.note{font-size:12px;color:#a7b1a9;line-height:1.4}
+    .empty{padding:28px;text-align:center;color:#89958b;border:1px dashed #354237;border-radius:18px}
+
+    .login-overlay{position:fixed;inset:0;z-index:100;background:
+      radial-gradient(circle at 75% 10%,rgba(140,255,0,.2),transparent 28%),
+      linear-gradient(180deg,#060906,#0a100b);display:grid;place-items:center;padding:20px}
+    .login-card{width:min(440px,100%);background:#101612;border:1px solid #27352a;border-radius:26px;padding:24px;box-shadow:0 25px 80px rgba(0,0,0,.5)}
+    .login-logo{font-size:34px;font-weight:950;letter-spacing:-1px}.login-logo span{color:var(--green)}
+    .login-card h2{margin-top:20px}.demo-users{display:grid;gap:8px;margin-top:14px}
+    .demo-user{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#151c17;border:1px solid #263229;border-radius:14px;padding:11px}
+    .role-pill{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:10px;font-weight:900;text-transform:uppercase}
+    .role-admin{background:#26451f;color:#c6ffae}.role-tech{background:#17394b;color:#a9e6ff}.role-client{background:#443519;color:#ffe19b}
+    .user-menu{display:flex;align-items:center;gap:8px}.user-mini{font-size:11px;text-align:right}.user-mini b{display:block}.user-mini span{color:#9fa9a1}
+    .locked{opacity:.45;pointer-events:none}.client-hero{display:grid;grid-template-columns:1.3fr .7fr;gap:10px}
+    .client-kpi{background:#101612;border:1px solid #263229;border-radius:18px;padding:14px}.client-kpi b{font-size:24px;color:var(--green);display:block}
+    .quote-actions{display:flex;gap:8px;margin-top:8px}
+    .request-card{background:linear-gradient(135deg,#122016,#0b100c);border:1px solid #2c3d2e;border-radius:18px;padding:14px}
+    .role-note{font-size:12px;color:#aab5ad;line-height:1.45;background:#111713;border:1px solid #273228;border-radius:14px;padding:12px}
+
+
+    .module-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .money{font-variant-numeric:tabular-nums}
+    .doc-table{width:100%;border-collapse:collapse;font-size:12px}
+    .doc-table th,.doc-table td{border-bottom:1px solid #2a352d;padding:9px 6px;text-align:left}
+    .doc-table th{color:var(--green);font-size:11px}
+    .doc-table input{width:100%;min-width:60px;background:#f4f6f4;color:#111;border:0;border-radius:8px;padding:8px}
+    .right{text-align:right!important}
+    .totals{margin-left:auto;max-width:310px;margin-top:12px}
+    .totals .line{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2b352d}
+    .totals .grand{font-size:18px;font-weight:900;color:var(--green)}
+    .sri-note{background:#161a13;border:1px solid #54631e;border-left:4px solid var(--green);padding:12px;border-radius:12px;color:#cdd6cf;font-size:12px;line-height:1.4}
+    .map-wrap{position:relative;width:100%;aspect-ratio:16/10;border-radius:18px;overflow:hidden;border:1px solid #334238;background:
+      linear-gradient(rgba(140,255,0,.05) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(140,255,0,.05) 1px,transparent 1px),#101612;
+      background-size:28px 28px;background-position:center}
+    .map-wrap.has-bg{background-size:cover;background-position:center;background-repeat:no-repeat}
+    .station-pin{position:absolute;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#081008;font-size:10px;font-weight:900;border:3px solid #071007;box-shadow:0 5px 18px rgba(0,0,0,.45);cursor:pointer}
+    .station-pin.attention{background:#ffd45f}.station-pin.replace{background:#ff806e}
+    .map-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;font-size:11px;color:#b7c1b9}
+    .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+    .quote-status{display:inline-flex;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800}
+    .quote-status.borrador{background:#273028;color:#c9d1cb}
+    .quote-status.enviada{background:#203e1f;color:#b8ff99}
+    .quote-status.aceptada{background:#164229;color:#a9ffc9}
+    .invoice-status{display:inline-flex;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800}
+    .invoice-status.borrador{background:#283029;color:#d0d5d1}
+    .invoice-status.pendiente{background:#4a3c19;color:#ffe18b}
+    .invoice-status.autorizada{background:#164229;color:#a9ffc9}
+    .invoice-status.rechazada{background:#421a1a;color:#ffb0b0}
+
+
+    .bar-chart{display:flex;flex-direction:column;gap:10px}
+    .bar-row{display:grid;grid-template-columns:minmax(105px,1.2fr) minmax(120px,3fr) 34px;gap:9px;align-items:center}
+    .bar-label{font-size:12px;color:#d8dfda;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .bar-track{height:18px;background:#1b241d;border:1px solid #2b392e;border-radius:999px;overflow:hidden}
+    .bar-fill{height:100%;background:linear-gradient(90deg,#65d600,var(--green));border-radius:999px;min-width:2px}
+    .bar-value{font-size:12px;color:var(--green);font-weight:800;text-align:right}
+    .analysis-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .analysis-box{background:#141b16;border:1px solid #273229;border-radius:14px;padding:12px}
+    .analysis-box b{display:block;color:var(--green);margin-bottom:4px}
+    .analysis-box span{font-size:12px;color:#b4beb6;line-height:1.4}
+    .trend-down{color:#9bff76!important}.trend-up{color:#ffb36b!important}.trend-flat{color:#d4d9d5!important}
+
+    .activity-list{display:flex;flex-direction:column;gap:10px}
+    .activity-row{display:grid;grid-template-columns:1.2fr .9fr .7fr;gap:8px;align-items:center;background:#131a15;border:1px solid #263229;border-radius:14px;padding:10px}
+    .activity-row b{font-size:12px}
+    .activity-row select,.activity-row input{width:100%;background:#f5f7f5;color:#111;border:0;border-radius:10px;padding:9px}
+    .metric-line{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #263128;font-size:12px}
+    .metric-line:last-child{border-bottom:0}
+    .level-bajo{color:#9bff76}.level-medio{color:#ffd36b}.level-alto{color:#ff8a6b}
+
+
+    @media(min-width:700px){.content{padding:22px}.grid{grid-template-columns:repeat(4,1fr)}}
+    @media print{body{background:white;color:#111}.app,header,.bottom{display:none!important}.print-cert{display:block!important}}
+    .print-cert{display:none}
+  
+    .signature-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .signature-box{background:#101612;border:1px solid #2b382d;border-radius:18px;padding:12px}
+    .signature-box canvas{width:100%;height:150px;background:#fff;border-radius:12px;touch-action:none;display:block}
+    .signature-status{font-size:11px;color:#9ca79f;margin-top:6px}
+    @media(max-width:620px){.signature-grid{grid-template-columns:1fr}}
+
+</style>
+</head>
+<body>
+
+<div id="loginOverlay" class="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">ROKE<span>LUX</span></div>
+    <div class="muted">PEST MANAGEMENT & BIOSECURITY</div>
+    <h2>Ingresar a la aplicación</h2>
+    <p class="note" style="margin:8px 0 16px">La misma app muestra funciones distintas según el perfil: Administrativo, Técnico o Cliente.</p>
+    <div class="field"><label>Usuario</label><input id="loginUser" placeholder="Correo o usuario"></div>
+    <div class="field"><label>Contraseña</label><input id="loginPass" type="password" placeholder="Contraseña"></div>
+    <button class="btn primary" style="width:100%" onclick="login()">Ingresar</button>
+    <div class="section-title"><h2 style="font-size:14px">Accesos de demostración</h2></div>
+    <div class="demo-users">
+      <div class="demo-user"><div><b>Administrador</b><div class="muted">admin / admin123</div></div><button class="btn ghost" onclick="demoLogin('admin')">Probar</button></div>
+      <div class="demo-user"><div><b>Técnico</b><div class="muted">tecnico / tec123</div></div><button class="btn ghost" onclick="demoLogin('tecnico')">Probar</button></div>
+      <div class="demo-user"><div><b>Cliente</b><div class="muted">cliente / cli123</div></div><button class="btn ghost" onclick="demoLogin('cliente')">Probar</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+  <header><div class="brand"><img src="logo.png" alt="ROKELUX"><div><div class="badge">PEST MANAGEMENT & BIOSECURITY</div><div class="muted">Control • Protección • Bienestar</div></div></div>
+<div class="user-menu"><div class="user-mini"><b id="currentUserName">Usuario</b><span id="currentUserRole">Perfil</span></div><button class="btn ghost" onclick="logout()">Salir</button></div></header>
+  <main class="shell content">
+    <section id="home" class="screen active">
+      <div class="hero"><h1>¡Hola!<br><span>ROKELUX</span> en acción.</h1><p>Controlamos hoy, protegemos tu mañana.</p>
+        <div class="actions"><button class="btn primary" onclick="go('inspection')">🔎 Nueva inspección</button><button class="btn secondary" onclick="go('service')">🛠 Nuevo servicio</button><button class="btn secondary" onclick="go('clients')">👥 Clientes</button><button class="btn secondary tech-only" onclick="go('certificates')">📄 Certificados</button><button class="btn secondary admin-only" onclick="go('reports')">📊 Reportes</button><button class="btn secondary admin-only" onclick="go('quotes')">💵 Cotizaciones</button><button class="btn secondary admin-only" onclick="go('billing')">🧾 Facturación</button><button class="btn secondary" onclick="go('stations')">📍 Estaciones roedores</button></div>
+        <div class="service-icons"><div><div class="ico">🪳</div>Fumigación</div><div><div class="ico">🐀</div>Desratización</div><div><div class="ico">🧼</div>Desinfección</div><div><div class="ico">🦟</div>Vectores</div></div>
+      </div>
+      <div class="section-title"><h2>Resumen</h2><span class="muted">Hoy</span></div>
+      <div class="grid">
+        <div class="card stat"><b id="stClients">0</b><span>Clientes</span></div>
+        <div class="card stat"><b id="stServices">0</b><span>Servicios</span></div>
+        <div class="card stat"><b id="stPending">0</b><span>Pendientes</span></div>
+        <div class="card stat"><b id="stCerts">0</b><span>Certificados</span></div>
+      </div>
+      <div class="section-title"><h2>Próximos servicios</h2><button class="btn ghost" onclick="go('calendar')">Ver calendario</button></div>
+      <div id="nextServices" class="list"></div>
+    </section>
+
+    <section id="clients" class="screen">
+      <div class="section-title"><h2>Clientes</h2><span class="muted">Empresas y hogares</span></div>
+      <div class="role-note admin-only" style="margin-bottom:12px">Administración de clientes: Activar · Modificar · Suspender · Eliminar.</div>
+      <div class="toolbar"><input id="clientSearch" placeholder="Buscar cliente, RUC o dirección..." oninput="renderClients()"><button class="plus admin-only" onclick="openNewClient()">+</button></div>
+      <div id="clientForm" class="panel admin-only" style="display:none">
+        <h3 id="clientFormTitle">Nuevo cliente</h3>
+        <input id="cEditId" type="hidden">
+        <div class="field"><label>Nombre / Empresa</label><input id="cName"></div>
+        <div class="cols"><div class="field"><label>RUC / C.I.</label><input id="cId"></div><div class="field"><label>Teléfono</label><input id="cPhone"></div></div>
+        <div class="field"><label>Dirección</label><input id="cAddress"></div>
+        <div class="field"><label>Correo</label><input id="cEmail" type="email"></div>
+        <div class="actions">
+          <button class="btn primary" onclick="saveClient()">Guardar</button>
+          <button class="btn ghost" onclick="closeClientForm()">Cancelar</button>
+        </div>
+      </div>
+      <div id="clientList" class="list"></div>
+    </section>
+
+    <section id="inspection" class="screen">
+      <div class="section-title"><h2>Nueva inspección</h2><span class="tag">Paso 1</span></div>
+      <div class="panel">
+        <div class="field"><label>Cliente</label><select id="iClient"></select></div>
+        <div class="field"><label>Dirección del servicio</label><input id="iAddress"></div>
+        <div class="cols"><div class="field"><label>Fecha</label><input id="iDate" type="date"></div><div class="field"><label>Tipo de instalación</label><select id="iType"><option>Hogar</option><option>Oficina</option><option>Hotel</option><option>Restaurante</option><option>Campamento</option><option>Bodega</option><option>Local comercial</option><option>Institución</option><option>Otro</option></select></div></div>
+        <div class="field"><label>Responsable en sitio</label><input id="iContact"></div>
+        <div class="field"><label>Hallazgos / observaciones iniciales</label><textarea id="iNotes"></textarea></div>
+      </div>
+      <div class="panel"><h3>Plagas o vectores detectados</h3><div id="inspectionPests" class="chips"></div></div>
+      <button class="btn primary" style="width:100%" onclick="saveInspection()">Guardar inspección</button>
+    </section>
+
+    <section id="service" class="screen">
+      <div class="section-title"><h2>Registro de servicio</h2><span class="tag">Trabajo</span></div>
+      <div class="panel">
+        <div class="field"><label>Cliente</label><select id="sClient"></select></div>
+        <div class="cols"><div class="field"><label>Fecha</label><input id="sDate" type="date"></div><div class="field"><label>Tipo de servicio</label><select id="sType"><option>Fumigación / Control de plagas y vectores</option><option>Desratización</option><option>Desinfección</option><option>Inspección</option></select></div></div>
+        <div class="field"><label>Áreas intervenidas</label><input id="sAreas" placeholder="Ej. cocina, bodega, perímetro exterior"></div>
+      </div>
+      <div class="panel"><h3>Plagas o vectores tratados</h3><div id="servicePests" class="chips"></div></div>
+      <div class="panel">
+        <h3>Nivel de actividad por plaga</h3>
+        <p class="note" style="margin-bottom:10px">Registra el nivel observado y, cuando aplique, el número de capturas, avistamientos o incidencias. Esto permitirá medir si el control mejora con el tiempo.</p>
+        <div id="activityRows" class="activity-list"></div>
+      </div>
+      <div class="panel"><h3>Productos / métodos aplicados</h3><div id="products" class="chips"></div><div class="field" style="margin-top:12px"><label>Otros</label><input id="sOtherProduct"></div></div>
+      <div class="panel"><h3>Observaciones y recomendaciones</h3><textarea id="sNotes" style="width:100%;min-height:100px;border:0;border-radius:12px;padding:12px"></textarea></div>
+      <div class="panel"><h3>Evidencia fotográfica</h3><input id="photoInput" type="file" accept="image/*" multiple onchange="previewPhotos(event)"><div id="photoGrid" class="photos" style="margin-top:10px"></div></div>
+      <button class="btn primary" style="width:100%" onclick="saveService()">Finalizar servicio</button>
+    </section>
+
+    <section id="history" class="screen">
+      <div class="section-title"><h2>Historial de servicios</h2><span class="muted">Registro local</span></div>
+      <div id="historyList" class="list"></div>
+    </section>
+
+    <section id="certificates" class="screen">
+      <div class="section-title"><h2>Certificados</h2><span class="muted">Generación automática</span></div>
+      <div class="cert"><div class="cert-preview"><div class="brandline">ROKE<span>LUX</span></div><div class="ctitle">CERTIFICACIÓN<span>DE SERVICIO REALIZADO</span></div><div class="tiny">Elige un servicio realizado para generar un certificado listo para imprimir o guardar como PDF.</div></div></div>
+      <div class="section-title"><h2>Servicios disponibles</h2></div>
+      <div id="certList" class="list"></div>
+    </section>
+
+    <section id="certificateSign" class="screen">
+      <div class="section-title"><h2>Firma del certificado</h2><span class="muted">Técnico + cliente</span></div>
+      <div class="panel">
+        <div class="field"><label>Servicio</label><select id="sigService" onchange="loadCertificateSignatures()"></select></div>
+        <div id="sigServiceInfo" class="role-note"></div>
+      </div>
+      <div class="signature-grid">
+        <div class="signature-box">
+          <h3>Técnico sanitario</h3>
+          <div class="field"><label>Nombre del técnico</label><input id="sigTechName" placeholder="Nombre completo"></div>
+          <canvas id="sigTechCanvas" width="700" height="300"></canvas>
+          <div class="actions"><button class="btn ghost" onclick="clearSignature('tech')">Borrar firma</button></div>
+          <div class="signature-status" id="sigTechStatus">Firma pendiente</div>
+        </div>
+        <div class="signature-box">
+          <h3>Recibido por</h3>
+          <div class="field"><label>Nombre del cliente / receptor</label><input id="sigClientName" placeholder="Nombre completo"></div>
+          <div class="field"><label>Cargo (opcional)</label><input id="sigClientRole" placeholder="Ej. Administrador"></div>
+          <canvas id="sigClientCanvas" width="700" height="300"></canvas>
+          <div class="actions"><button class="btn ghost" onclick="clearSignature('client')">Borrar firma</button></div>
+          <div class="signature-status" id="sigClientStatus">Firma pendiente</div>
+        </div>
+      </div>
+      <div class="panel">
+        <p class="note">Al guardar, las firmas quedan asociadas a este servicio y aparecerán automáticamente en el certificado. El técnico puede recoger ambas firmas desde el mismo celular o tablet.</p>
+        <div class="actions">
+          <button class="btn primary" onclick="saveCertificateSignatures()">Guardar firmas</button>
+          <button class="btn secondary" onclick="printSelectedSignedCertificate()">Ver / PDF</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="calendar" class="screen">
+      <div class="section-title"><h2>Calendario</h2><span id="monthLabel" class="muted"></span></div>
+      <div id="calendarGrid" class="calendar"></div>
+      <div class="section-title"><h2>Servicios del mes</h2></div><div id="calendarServices" class="list"></div>
+    </section>
+
+
+    <section id="reports" class="screen">
+      <div class="section-title"><h2>Reportes y análisis</h2><span class="muted">Por cliente</span></div>
+
+      <div class="panel">
+        <div class="field"><label>Cliente</label><select id="rClient" onchange="renderReport()"></select></div>
+        <div class="cols">
+          <div class="field"><label>Desde</label><input id="rFrom" type="date" onchange="renderReport()"></div>
+          <div class="field"><label>Hasta</label><input id="rTo" type="date" onchange="renderReport()"></div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" onclick="renderReport()">Actualizar análisis</button>
+          <button class="btn secondary" onclick="printClientReport()">Imprimir / PDF</button>
+        </div>
+      </div>
+
+      <div id="reportEmpty" class="empty" style="display:none">Selecciona un cliente con servicios registrados.</div>
+
+      <div id="reportContent">
+        <div class="grid">
+          <div class="card stat"><b id="rTotal">0</b><span>Servicios analizados</span></div>
+          <div class="card stat"><b id="rPestCount">0</b><span>Tipos de plagas</span></div>
+          <div class="card stat"><b id="rAreaCount">0</b><span>Áreas intervenidas</span></div>
+          <div class="card stat"><b id="rTrend">—</b><span>Tendencia</span></div>
+        </div>
+
+        <div class="section-title"><h2>Frecuencia de plagas</h2><span class="muted">Número de registros</span></div>
+        <div class="panel">
+          <div id="pestBars" class="bar-chart"></div>
+        </div>
+
+        <div class="section-title"><h2>Frecuencia por área</h2><span class="muted">Áreas más intervenidas</span></div>
+        <div class="panel">
+          <div id="areaBars" class="bar-chart"></div>
+        </div>
+
+        
+        <div class="section-title"><h2>Nivel de actividad</h2><span class="muted">Bajo / Medio / Alto</span></div>
+        <div class="panel">
+          <div id="activityBars" class="bar-chart"></div>
+        </div>
+
+        <div class="section-title"><h2>Capturas / incidencias</h2><span class="muted">Tendencia cuantitativa</span></div>
+        <div class="panel">
+          <div id="captureBars" class="bar-chart"></div>
+        </div>
+
+<div class="section-title"><h2>Evolución periódica</h2><span class="muted">Servicios por mes</span></div>
+        <div class="panel">
+          <div id="monthBars" class="bar-chart horizontal-time"></div>
+        </div>
+
+        <div class="section-title"><h2>Análisis periódico de control de plagas</h2></div>
+        <div id="periodicAnalysis" class="panel"></div>
+
+        <div class="section-title"><h2>Detalle del periodo</h2></div>
+        <div id="reportHistory" class="list"></div>
+      </div>
+    </section>
+
+
+    <section id="quotes" class="screen">
+      <div class="section-title"><h2>Cotizaciones</h2><span class="muted">Crear, enviar y convertir</span></div>
+      <div class="panel">
+        <div class="field"><label>Cliente</label><select id="qClient"></select></div>
+        <div class="cols">
+          <div class="field"><label>Fecha</label><input id="qDate" type="date"></div>
+          <div class="field"><label>Validez (días)</label><input id="qValidity" type="number" min="1" value="15"></div>
+        </div>
+        <div class="field"><label>Notas / alcance</label><textarea id="qNotes" placeholder="Ej. inspección inicial, tratamiento, seguimiento..."></textarea></div>
+        <h3 style="margin:8px 0">Detalle</h3>
+        <table class="doc-table"><thead><tr><th>Descripción</th><th style="width:70px">Cant.</th><th style="width:95px">P. unit.</th><th style="width:90px">Total</th><th></th></tr></thead><tbody id="qItems"></tbody></table>
+        <button class="btn secondary" style="margin-top:10px" onclick="addQuoteItem()">+ Agregar ítem</button>
+        <div class="totals"><div class="line"><span>Subtotal</span><b id="qSubtotal" class="money">$0.00</b></div><div class="line grand"><span>Total</span><b id="qTotal" class="money">$0.00</b></div></div>
+        <button class="btn primary" style="width:100%;margin-top:12px" onclick="saveQuote()">Guardar cotización</button>
+      </div>
+      <div class="section-title"><h2>Historial de cotizaciones</h2></div>
+      <div id="quoteList" class="list"></div>
+    </section>
+
+    <section id="billing" class="screen">
+      <div class="section-title"><h2>Facturación</h2><span class="muted">Gestión de comprobantes</span></div>
+      <div class="sri-note"><b>Facturación electrónica SRI:</b> esta versión permite preparar, calcular, imprimir y guardar comprobantes en la app. Para emitir una factura electrónica con validez tributaria en Ecuador se debe conectar la app con un proveedor/API compatible con SRI y configurar la firma electrónica del contribuyente. La app no marcará un comprobante como “Autorizado SRI” automáticamente sin esa integración.</div>
+      <div class="panel" style="margin-top:12px">
+        <div class="field"><label>Cliente</label><select id="fClient"></select></div>
+        <div class="cols">
+          <div class="field"><label>Número / secuencial</label><input id="fNumber" placeholder="001-001-000000001"></div>
+          <div class="field"><label>Fecha</label><input id="fDate" type="date"></div>
+        </div>
+        <div class="cols">
+          <div class="field"><label>IVA (%)</label><input id="fVat" type="number" min="0" step="0.01" value="15" oninput="calcInvoice()"></div>
+          <div class="field"><label>Estado</label><select id="fStatus"><option>Borrador</option><option>Pendiente SRI</option><option>Autorizada SRI</option><option>Rechazada</option></select></div>
+        </div>
+        <div class="field"><label>Clave de acceso / autorización (si aplica)</label><input id="fAccessKey" placeholder="Se completa al integrar/autorización SRI"></div>
+        <table class="doc-table"><thead><tr><th>Descripción</th><th style="width:70px">Cant.</th><th style="width:95px">P. unit.</th><th style="width:90px">Total</th><th></th></tr></thead><tbody id="fItems"></tbody></table>
+        <button class="btn secondary" style="margin-top:10px" onclick="addInvoiceItem()">+ Agregar ítem</button>
+        <div class="totals">
+          <div class="line"><span>Subtotal</span><b id="fSubtotal">$0.00</b></div>
+          <div class="line"><span>IVA</span><b id="fVatAmount">$0.00</b></div>
+          <div class="line grand"><span>Total</span><b id="fTotal">$0.00</b></div>
+        </div>
+        <button class="btn primary" style="width:100%;margin-top:12px" onclick="saveInvoice()">Guardar comprobante</button>
+      </div>
+      <div class="section-title"><h2>Comprobantes</h2></div>
+      <div id="invoiceList" class="list"></div>
+    </section>
+
+    <section id="serviceReports" class="screen">
+      <div class="section-title"><h2>Informe por servicio</h2><span class="muted">Un informe por cada trabajo</span></div>
+      <div class="panel">
+        <div class="field"><label>Servicio realizado</label><select id="srService"></select></div>
+        <button class="btn primary" style="width:100%" onclick="printServiceReport()">Generar informe / PDF</button>
+      </div>
+      <div class="section-title"><h2>Servicios disponibles</h2></div>
+      <div id="serviceReportList" class="list"></div>
+    </section>
+
+    <section id="stations" class="screen">
+      <div class="section-title"><h2>Mapa de estaciones de roedores</h2><span class="muted">Control sanitario y monitoreo</span></div>
+      <div class="panel">
+        <div class="field"><label>Cliente</label><select id="mClient" onchange="renderStationMap()"></select></div>
+        <div class="field tech-only"><label>Área / instalación</label><input id="mSite" placeholder="Ej. Perímetro bodega principal" oninput="saveMapMeta()"></div>
+        <div class="field tech-only"><label>Cargar plano o foto del sitio (opcional)</label><input type="file" id="mBg" accept="image/*" onchange="setMapBackground(event)"></div>
+        <p class="note tech-only">Toca un punto del mapa para crear una estación. Luego toca una estación existente para actualizar su estado, fecha de revisión y observaciones.</p>
+        <div id="rodentMap" class="map-wrap" onclick="addStationFromMap(event)"></div>
+        <div class="map-legend"><span><i class="dot" style="background:#8cff00"></i>Operativa</span><span><i class="dot" style="background:#ffd45f"></i>Revisar</span><span><i class="dot" style="background:#ff806e"></i>Reemplazar</span></div>
+        <div class="actions"><button class="btn secondary" onclick="printStationMap()">Imprimir mapa / PDF</button><button class="btn ghost tech-only" onclick="clearStationMap()">Limpiar mapa</button></div>
+      </div>
+      <div class="section-title"><h2>Estaciones registradas</h2></div>
+      <div id="stationList" class="list"></div>
+    </section>
+
+
+    <section id="clientPortal" class="screen">
+      <div class="section-title"><h2>Mi cuenta ROKELUX</h2><span class="role-pill role-client">Cliente</span></div>
+      <div class="client-hero">
+        <div class="hero"><h1>Tu espacio,<br><span>bajo control.</span></h1><p id="clientWelcome">Consulta servicios, documentos y evolución de plagas.</p></div>
+        <div class="client-kpi"><b id="cpLastActivity">—</b><span class="muted">Última actividad</span><hr style="border-color:#253128"><b id="cpOpenQuotes">0</b><span class="muted">Cotizaciones pendientes</span></div>
+      </div>
+      <div class="section-title"><h2>Accesos rápidos</h2></div>
+      <div class="module-grid">
+        <button class="btn secondary" onclick="clientGoServices()">🛠 Mis servicios</button>
+        <button class="btn secondary" onclick="clientGoReports()">📊 Control de plagas</button>
+        <button class="btn secondary" onclick="clientGoDocs()">📄 Mis documentos</button>
+        <button class="btn secondary admin-only" onclick="clientGoQuotes()">💵 Cotizaciones</button>
+        <button class="btn secondary" onclick="clientGoStations()">📍 Estaciones roedores</button>
+      </div>
+
+      <div class="section-title"><h2>Solicitar atención</h2></div>
+      <div class="request-card">
+        <div class="field"><label>¿Qué necesitas?</label><select id="reqType"><option>Solicitar inspección</option><option>Reportar presencia de plaga</option><option>Solicitar nueva visita</option><option>Consulta sobre servicio</option></select></div>
+        <div class="field"><label>Mensaje</label><textarea id="reqMessage" placeholder="Cuéntanos qué observaste o qué necesitas..."></textarea></div>
+        <div class="field"><label>Foto (opcional)</label><input id="reqPhoto" type="file" accept="image/*"></div>
+        <button class="btn primary" onclick="submitClientRequest()">Enviar solicitud</button>
+      </div>
+
+      <div class="section-title"><h2>Actividad reciente</h2></div>
+      <div id="clientRecent" class="list"></div>
+    </section>
+
+    <section id="usersAdmin" class="screen">
+      <div class="section-title"><h2>Usuarios y accesos</h2><span class="role-pill role-admin">Administrativo</span></div>
+      <div class="role-note">El administrador puede crear accesos para técnicos y clientes. Cada cliente debe vincularse a su ficha para que solo vea su propia información.</div>
+      <div class="panel" style="margin-top:12px">
+        <div class="field"><label>Nombre</label><input id="uName"></div>
+        <div class="cols"><div class="field"><label>Usuario</label><input id="uUser"></div><div class="field"><label>Contraseña</label><input id="uPass"></div></div>
+        <div class="cols">
+          <div class="field"><label>Rol</label><select id="uRole" onchange="toggleUserClientLink()"><option value="technician">Técnico</option><option value="client">Cliente</option><option value="admin">Administrativo</option></select></div>
+          <div class="field" id="uClientWrap" style="display:none"><label>Vincular con cliente</label><select id="uClient"></select></div>
+        </div>
+        <div class="field"><label>Estado inicial</label><select id="uActive"><option value="true">Activo</option><option value="false">Inactivo</option></select></div><button class="btn primary" onclick="saveUser()">Crear usuario</button>
+      </div>
+      <div class="section-title"><h2>Usuarios registrados</h2></div>
+      <div id="userList" class="list"></div>
+    </section>
+
+    <section id="clientDocs" class="screen">
+      <div class="section-title"><h2>Mis documentos</h2><span class="muted">Certificados e informes</span></div>
+      <div id="clientDocsList" class="list"></div>
+    </section>
+
+    <section id="clientQuotes" class="screen">
+      <div class="section-title"><h2>Mis cotizaciones</h2><span class="muted">Aprobar o rechazar</span></div>
+      <div id="clientQuoteList" class="list"></div>
+    </section>
+
+    <section id="clientInvoices" class="screen">
+      <div class="section-title"><h2>Mis facturas</h2><span class="muted">Consulta y descarga</span></div>
+      <div id="clientInvoiceList" class="list"></div>
+    </section>
+
+    <section id="settings" class="screen">
+      <div class="section-title"><h2>Configuración</h2><span class="muted">ROKELUX</span></div>
+      <div class="panel">
+        <div class="settings-row"><div><b>Empresa</b><div class="muted">ROKELUX | Pest Management & Biosecurity</div></div><span>›</span></div>
+        <div class="settings-row"><div><b>RUC</b><div class="muted">2293544916001</div></div><span>✓</span></div>
+        <div class="settings-row"><div><b>Dirección</b><div class="muted">Luis Uquillas y Sanmiguel</div></div><span>✓</span></div>
+        <div class="settings-row"><div><b>Contacto</b><div class="muted">099 498 1292 · rokelux@proton.me</div></div><span>✓</span></div>
+        <div class="settings-row" onclick="go('reports')" style="cursor:pointer"><div><b>Reportes y análisis</b><div class="muted">Frecuencia, áreas, tendencias y control periódico</div></div><span>›</span></div>
+        <div class="settings-row" onclick="go('quotes')" style="cursor:pointer"><div><b>Cotizaciones</b><div class="muted">Crear propuestas y convertirlas en comprobantes</div></div><span>›</span></div>
+        <div class="settings-row" onclick="go('billing')" style="cursor:pointer"><div><b>Facturación</b><div class="muted">Borradores, cálculo y futura integración SRI</div></div><span>›</span></div>
+        <div class="settings-row" onclick="go('serviceReports')" style="cursor:pointer"><div><b>Informes por servicio</b><div class="muted">Informe técnico individual de cada trabajo</div></div><span>›</span></div>
+        <div class="settings-row" onclick="go('stations')" style="cursor:pointer"><div><b>Mapa de estaciones</b><div class="muted">Ubicación y estado de estaciones de roedores</div></div><span>›</span></div>
+        <div class="settings-row admin-only" onclick="go('usersAdmin')" style="cursor:pointer"><div><b>Usuarios y accesos</b><div class="muted">Administrativo, técnicos y clientes</div></div><span>›</span></div>
+      </div>
+      <div class="panel"><h3>Respaldo local</h3><p class="note">Esta versión de demostración guarda usuarios, permisos y datos en el dispositivo. En producción, el acceso multiusuario debe usar autenticación y permisos validados por un servidor.</p><div class="actions"><button class="btn secondary" onclick="exportData()">Exportar datos</button><label class="btn secondary" style="text-align:center">Importar<input type="file" accept=".json" style="display:none" onchange="importData(event)"></label></div></div>
+      <button class="btn danger" style="width:100%" onclick="resetApp()">Borrar datos de prueba</button>
+    </section>
+  </main>
+  <nav class="bottom"><div id="bottomNav" class="bottom-inner"></div></nav>
+</div>
+<div id="printCert" class="print-cert"></div>
+<script>
+const pests=["Mosquitos","Cucarachas","Hormigas","Roedores","Moscas","Termitas","Pulgas","Garrapatas","Chinches de cama","Triatominos / vinchucas","Flebótomos","Avispas","Otros"];
+const products=["Biothrine","K-Othrine","Deltaplan","Delta Control","Insectin","Sipertrin","Cyper Shield","Contrac Block","Ratigen","Abate","Ranger","Creolina","Trampas adhesivas","Estaciones de control"];
+const $=id=>document.getElementById(id);
+const state=()=>{
+  const d=JSON.parse(localStorage.getItem("rokelux_data")||'{}');
+  return {
+    clients:d.clients||[],
+    inspections:d.inspections||[],
+    services:d.services||[],
+    quotes:d.quotes||[],
+    invoices:d.invoices||[],
+    stations:d.stations||[],
+    stationMaps:d.stationMaps||[],
+    users:d.users||[],
+    requests:d.requests||[]
+  };
+};
+const save=d=>{localStorage.setItem("rokelux_data",JSON.stringify(d)); renderAll();}
+
+let sessionUser=null;
+function ensureDemoUsers(){
+  const d=state();
+  if(!d.users.length){
+    const firstClient=d.clients[0];
+    d.users=[
+      {id:crypto.randomUUID(),name:"Administración ROKELUX",username:"admin",password:"admin123",role:"admin",clientId:null,active:true},
+      {id:crypto.randomUUID(),name:"Técnico ROKELUX",username:"tecnico",password:"tec123",role:"technician",clientId:null,active:true},
+      {id:crypto.randomUUID(),name:firstClient?firstClient.name:"Cliente ROKELUX",username:"cliente",password:"cli123",role:"client",clientId:firstClient?firstClient.id:null,active:true}
+    ];
+    localStorage.setItem("rokelux_data",JSON.stringify(d));
+  }
+}
+function roleLabel(r){return r==="admin"?"Administrativo":r==="technician"?"Técnico":"Cliente"}
+function demoLogin(username){$("loginUser").value=username;$("loginPass").value=username==="admin"?"admin123":username==="tecnico"?"tec123":"cli123";login()}
+function login(){
+  ensureDemoUsers();const d=state(),u=d.users.find(x=>x.active!==false&&x.username===$("loginUser").value.trim()&&x.password===$("loginPass").value);
+  if(!u)return alert("Usuario o contraseña incorrectos, o la cuenta está inactiva.");
+  if(u.role==="client"){const c=d.clients.find(x=>x.id===u.clientId);if(!c||c.active===false)return alert("El cliente vinculado se encuentra suspendido. Contacta al administrador.");}
+  sessionUser=u;sessionStorage.setItem("rokelux_session",u.id);$("loginOverlay").style.display="none";applyRole();renderAll();
+}
+function restoreSession(){
+  ensureDemoUsers();const id=sessionStorage.getItem("rokelux_session");if(!id)return;
+  const u=state().users.find(x=>x.id===id&&x.active!==false);if(u){sessionUser=u;$("loginOverlay").style.display="none";applyRole()}
+}
+function logout(){sessionUser=null;sessionStorage.removeItem("rokelux_session");$("loginOverlay").style.display="grid";$("loginPass").value="";window.scrollTo(0,0)}
+function isAdmin(){return sessionUser?.role==="admin"}function isTech(){return sessionUser?.role==="technician"}function isClient(){return sessionUser?.role==="client"}
+function canEditTechnical(){return isAdmin()||isTech()}
+function currentClientId(){return isClient()?sessionUser.clientId:null}
+function applyRole(){
+  if(!sessionUser)return;
+  $("currentUserName").textContent=sessionUser.name;$("currentUserRole").textContent=roleLabel(sessionUser.role);
+  document.querySelectorAll(".admin-only").forEach(x=>x.style.display=isAdmin()?"":"none");
+  document.querySelectorAll(".tech-only").forEach(x=>x.style.display=canEditTechnical()?"":"none");
+  renderRoleNav();
+
+  // Visibilidad de módulos internos.
+  const hideForTech=["quotes","billing","usersAdmin"];
+  if(isTech()){
+    // Nada adicional: las pantallas administrativas ya están bloqueadas por allowedScreen.
+  }
+
+  if(isClient())go("clientPortal");else go("home");
+}
+function renderRoleNav(){
+  const nav=$("bottomNav");if(!nav||!sessionUser)return;
+  if(isClient()){
+    nav.innerHTML=`
+      <button class="nav active" data-screen="clientPortal" onclick="go('clientPortal')"><span>⌂</span>Inicio</button>
+      <button class="nav" data-screen="history" onclick="clientGoServices()"><span>🛠</span>Servicios</button>
+      <button class="nav" data-screen="reports" onclick="clientGoReports()"><span>📊</span>Control</button>
+      <button class="nav" data-screen="clientDocs" onclick="go('clientDocs')"><span>▤</span>Documentos</button>
+      <button class="nav" data-screen="clientQuotes" onclick="go('clientQuotes')"><span>💵</span>Cotizaciones</button>`;
+  }else if(isTech()){
+    nav.innerHTML=`
+      <button class="nav active" data-screen="home" onclick="go('home')"><span>⌂</span>Inicio</button>
+      <button class="nav" data-screen="clients" onclick="go('clients')"><span>♙</span>Clientes</button>
+      <button class="nav" data-screen="service" onclick="go('service')"><span>🛠</span>Servicios</button>
+      <button class="nav" data-screen="certificates" onclick="go('certificates')"><span>📄</span>Certificado</button>
+      <button class="nav" data-screen="stations" onclick="go('stations')"><span>📍</span>Estaciones</button>`;
+  }else{
+    nav.innerHTML=`
+      <button class="nav active" data-screen="home" onclick="go('home')"><span>⌂</span>Inicio</button>
+      <button class="nav" data-screen="clients" onclick="go('clients')"><span>♙</span>Clientes</button>
+      <button class="nav" data-screen="service" onclick="go('service')"><span>🛠</span>Servicios</button>
+      <button class="nav" data-screen="reports" onclick="go('reports')"><span>📊</span>Reportes</button>
+      <button class="nav" data-screen="settings" onclick="go('settings')"><span>⋯</span>Más</button>`;
+  }
+}
+function allowedScreen(id){
+  if(!sessionUser)return false;
+  if(isAdmin())return true;
+  if(isTech())return ["home","clients","inspection","service","history","stations","certificates","certificateSign","settings"].includes(id);
+  const ok=["clientPortal","history","reports","clientDocs","clientQuotes","stations"];
+  return ok.includes(id);
+}
+
+function initDemo(){
+  const d=state(); if(d.clients.length||d.services.length)return;
+  d.clients=[
+    {id:crypto.randomUUID(),name:"Hostal Yutzo",doc:"1791234567001",phone:"0990000000",address:"El Coca",email:""},
+    {id:crypto.randomUUID(),name:"Constructora Andrade",doc:"0992345678001",phone:"",address:"Samborondón",email:""}
+  ];
+  d.services=[{id:crypto.randomUUID(),clientId:d.clients[0].id,date:new Date().toISOString().slice(0,10),type:"Fumigación / Control de plagas y vectores",areas:"Cocina y área de residuos",pests:["Cucarachas","Mosquitos"],products:["K-Othrine"],otherProduct:"",notes:"Servicio preventivo. Mantener drenajes limpios y recipientes cerrados.",photos:[]}];
+  save(d);
+}
+function go(id){
+  if(sessionUser&&!allowedScreen(id)){alert("Tu perfil no tiene permiso para acceder a esta sección.");return}
+  document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active",s.id===id));
+  document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.screen===id));
+  window.scrollTo({top:0,behavior:"smooth"});renderAll()
+}
+
+function closeClientForm(){
+  $("clientForm").style.display="none";$("cEditId").value="";
+}
+function openNewClient(){
+  if(!isAdmin())return alert("Solo el perfil administrativo puede crear clientes.");
+  ["cName","cId","cAddress","cPhone","cEmail","cEditId"].forEach(id=>$(id).value="");
+  $("clientFormTitle").textContent="Nuevo cliente";$("clientForm").style.display="block";
+}
+function toggleClientForm(){if(isAdmin())openNewClient()}
+function editClient(id){
+  if(!isAdmin())return alert("Solo el perfil administrativo puede modificar clientes.");
+  const c=state().clients.find(x=>x.id===id);if(!c)return;
+  $("cEditId").value=c.id;$("cName").value=c.name||"";$("cId").value=c.doc||"";$("cAddress").value=c.address||"";$("cPhone").value=c.phone||"";$("cEmail").value=c.email||"";
+  $("clientFormTitle").textContent="Modificar cliente";$("clientForm").style.display="block";window.scrollTo({top:0,behavior:"smooth"});
+}
+function saveClient(){
+  if(!isAdmin())return alert("Solo el perfil administrativo puede crear o modificar clientes.");
+  const d=state(),name=$("cName").value.trim(),editId=$("cEditId").value;
+  if(!name)return alert("Escribe el nombre del cliente.");
+  if(editId){
+    const c=d.clients.find(x=>x.id===editId);if(!c)return;
+    Object.assign(c,{name,doc:$("cId").value,address:$("cAddress").value,phone:$("cPhone").value,email:$("cEmail").value});
+  }else{
+    d.clients.push({id:crypto.randomUUID(),name,doc:$("cId").value,address:$("cAddress").value,phone:$("cPhone").value,email:$("cEmail").value,active:true});
+  }
+  save(d);closeClientForm();renderAll();
+}
+function setClientStatus(id,active){
+  if(!isAdmin())return alert("Solo el perfil administrativo puede activar o suspender clientes.");
+  const d=state(),c=d.clients.find(x=>x.id===id);if(!c)return;c.active=!!active;save(d);renderAll();
+}
+function deleteClient(id){
+  if(!isAdmin())return alert("Solo el perfil administrativo puede eliminar clientes.");
+  const d=state(),c=d.clients.find(x=>x.id===id);if(!c)return;
+  if(!confirm(`¿Eliminar definitivamente a "${c.name}"? También se eliminarán sus registros relacionados.`))return;
+  d.clients=d.clients.filter(x=>x.id!==id);
+  d.inspections=(d.inspections||[]).filter(x=>x.clientId!==id);
+  d.services=(d.services||[]).filter(x=>x.clientId!==id);
+  d.quotes=(d.quotes||[]).filter(x=>x.clientId!==id);
+  d.invoices=(d.invoices||[]).filter(x=>x.clientId!==id);
+  d.stations=(d.stations||[]).filter(x=>x.clientId!==id);
+  d.stationMaps=(d.stationMaps||[]).filter(x=>x.clientId!==id);
+  d.requests=(d.requests||[]).filter(x=>x.clientId!==id);
+  d.users=(d.users||[]).filter(x=>x.clientId!==id);
+  save(d);renderAll();
+}
+function renderClients(){
+  const d=state(),q=($("clientSearch")?.value||"").toLowerCase();
+  let arr=d.clients.filter(c=>(String(c.name||"")+String(c.doc||"")+String(c.address||"")).toLowerCase().includes(q));
+  if(!isAdmin())arr=arr.filter(c=>c.active!==false);
+  $("clientList").innerHTML=arr.length?arr.map(c=>{
+    const active=c.active!==false;
+    return `<div class="item" style="align-items:flex-start">
+      <div class="avatar">${c.name.includes(" ")?"🏢":"👤"}</div>
+      <div class="meta" style="flex:1">
+        <b>${esc(c.name)}</b>
+        <small>${esc(c.doc||"Sin RUC/C.I.")}<br>${esc(c.address||"Sin dirección")} · <b>${active?"Activo":"Suspendido"}</b></small>
+        ${isAdmin()?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+          <button class="btn primary" onclick="setClientStatus('${c.id}',true)" ${active?'disabled style="opacity:.45"':''}>Activar</button>
+          <button class="btn secondary" onclick="editClient('${c.id}')">Modificar</button>
+          <button class="btn ghost" onclick="setClientStatus('${c.id}',false)" ${!active?'disabled style="opacity:.45"':''}>Suspender</button>
+          <button class="btn ghost" onclick="deleteClient('${c.id}')" style="border-color:#8b2a2a">Eliminar</button>
+        </div>`:""}
+      </div>
+    </div>`;
+  }).join(""):`<div class="empty">Aún no hay clientes.</div>`;
+}
+
+function renderSelects(){const d=state(),arr=isAdmin()?d.clients:d.clients.filter(c=>c.active!==false),opts='<option value="">Seleccionar cliente…</option>'+arr.map(c=>`<option value="${c.id}">${esc(c.name)}${c.active===false?" (Suspendido)":""}</option>`).join("");["iClient","sClient"].forEach(id=>{const el=$(id);if(el){let v=el.value;el.innerHTML=opts;el.value=v}})}
+function makeChips(id,arr,prefix){const el=$(id);if(!el)return;el.innerHTML=arr.map((x,i)=>`<span class="chip"><input id="${prefix+i}" type="checkbox" value="${x}" ${prefix==="sp"?'onchange="renderActivityRows()"':""}><label for="${prefix+i}">${x}</label></span>`).join("");if(prefix==="sp")renderActivityRows()}
+function selected(prefix){return [...document.querySelectorAll(`input[id^="${prefix}"]:checked`)].map(x=>x.value)}
+
+function renderActivityRows(){
+  const el=$("activityRows"); if(!el)return;
+  const selectedPests=selected("sp");
+  const previous={};
+  [...el.querySelectorAll(".activity-row")].forEach(row=>{
+    previous[row.dataset.pest]={
+      level:row.querySelector("select")?.value||"Bajo",
+      count:row.querySelector("input")?.value||""
+    };
+  });
+  el.innerHTML=selectedPests.length?selectedPests.map((p,i)=>{
+    const prev=previous[p]||{level:"Bajo",count:""};
+    return `<div class="activity-row" data-pest="${esc(p)}">
+      <b>${esc(p)}</b>
+      <select aria-label="Nivel de actividad de ${esc(p)}">
+        <option ${prev.level==="Bajo"?"selected":""}>Bajo</option>
+        <option ${prev.level==="Medio"?"selected":""}>Medio</option>
+        <option ${prev.level==="Alto"?"selected":""}>Alto</option>
+      </select>
+      <input type="number" min="0" step="1" value="${esc(prev.count)}" placeholder="Cantidad">
+    </div>`;
+  }).join(""):`<div class="empty">Selecciona una o más plagas para registrar su nivel de actividad.</div>`;
+}
+function getActivityData(){
+  const el=$("activityRows"); if(!el)return[];
+  return [...el.querySelectorAll(".activity-row")].map(row=>({
+    pest:row.dataset.pest,
+    level:row.querySelector("select").value,
+    count:Number(row.querySelector("input").value||0)
+  }));
+}
+function activityScore(level){return level==="Alto"?3:level==="Medio"?2:1}
+
+function saveInspection(){if(!canEditTechnical())return alert("Tu perfil no puede registrar inspecciones.");const d=state();if(!$("iClient").value)return alert("Selecciona un cliente.");d.inspections.push({id:crypto.randomUUID(),clientId:$("iClient").value,address:$("iAddress").value,date:$("iDate").value,type:$("iType").value,contact:$("iContact").value,notes:$("iNotes").value,pests:selected("ip")});save(d);alert("Inspección guardada.");go("home")}
+let currentPhotos=[];
+function previewPhotos(e){currentPhotos=[];$("photoGrid").innerHTML="";[...e.target.files].slice(0,4).forEach(file=>{const r=new FileReader();r.onload=()=>{currentPhotos.push(r.result);$("photoGrid").innerHTML=currentPhotos.map(src=>`<div class="photo"><img src="${src}"></div>`).join("")};r.readAsDataURL(file)})}
+function saveService(){if(!canEditTechnical())return alert("Tu perfil no puede registrar servicios.");const d=state();if(!$("sClient").value)return alert("Selecciona un cliente.");d.services.push({id:crypto.randomUUID(),clientId:$("sClient").value,date:$("sDate").value||new Date().toISOString().slice(0,10),type:$("sType").value,areas:$("sAreas").value,pests:selected("sp"),products:selected("pr"),otherProduct:$("sOtherProduct").value,notes:$("sNotes").value,photos:currentPhotos,activity:getActivityData()});currentPhotos=[];save(d);alert("Servicio guardado. Ya puedes generar su certificado.");go("certificates")}
+function clientName(id){const c=state().clients.find(x=>x.id===id);return c?c.name:"Cliente"}
+function renderHistory(){const d=state(),svc=isClient()?d.services.filter(s=>s.clientId===currentClientId()):d.services;$("historyList").innerHTML=svc.length?[...svc].reverse().map(s=>`<div class="item"><div class="avatar">🛡️</div><div class="meta"><b>${esc(clientName(s.clientId))}</b><small>${esc(s.type)} · ${fmt(s.date)}</small></div><span class="tag">Completado</span></div>`).join(""):`<div class="empty">Aún no hay servicios registrados.</div>`}
+function renderCerts(){
+  const d=state(),svc=isClient()?d.services.filter(s=>s.clientId===currentClientId()):d.services;
+  $("certList").innerHTML=svc.length?[...svc].reverse().map(s=>{
+    const signed=!!(s.technicianSignature&&s.clientSignature);
+    return `<div class="item"><div class="avatar">📄</div><div class="meta"><b>${esc(clientName(s.clientId))}</b><small>${esc(s.type)} · ${fmt(s.date)} · ${signed?"Firmado":"Pendiente de firmas"}</small></div>${canEditTechnical()?`<button class="btn secondary" onclick="openCertificateSign('${s.id}')">${signed?"Editar firmas":"Firmar"}</button>`:""}<button class="btn primary" onclick="printCertificate('${s.id}')">Ver / PDF</button></div>`
+  }).join(""):`<div class="empty">Registra un servicio para generar certificados.</div>`
+}
+let signaturePads={tech:null,client:null};
+function setupSignaturePad(canvasId,key){
+  const canvas=$(canvasId),ctx=canvas.getContext("2d");ctx.lineWidth=4;ctx.lineCap="round";ctx.strokeStyle="#111";
+  let drawing=false,last=null;
+  const point=e=>{const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}};
+  canvas.onpointerdown=e=>{drawing=true;last=point(e);canvas.setPointerCapture?.(e.pointerId)};
+  canvas.onpointermove=e=>{if(!drawing)return;const q=point(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(q.x,q.y);ctx.stroke();last=q;canvas.dataset.signed="1";$(key==="tech"?"sigTechStatus":"sigClientStatus").textContent="Firma capturada"};
+  canvas.onpointerup=canvas.onpointercancel=()=>{drawing=false};
+  signaturePads[key]={canvas,ctx};
+}
+function clearSignature(key){
+  const pad=signaturePads[key];if(!pad)return;pad.ctx.clearRect(0,0,pad.canvas.width,pad.canvas.height);pad.canvas.dataset.signed="";
+  $(key==="tech"?"sigTechStatus":"sigClientStatus").textContent="Firma pendiente";
+}
+function drawSavedSignature(key,data){
+  clearSignature(key);if(!data)return;const pad=signaturePads[key],img=new Image();img.onload=()=>{pad.ctx.drawImage(img,0,0,pad.canvas.width,pad.canvas.height);pad.canvas.dataset.signed="1";$(key==="tech"?"sigTechStatus":"sigClientStatus").textContent="Firma guardada"};img.src=data;
+}
+function renderSignatureServiceSelect(){
+  const el=$("sigService");if(!el)return;const d=state(),v=el.value;
+  el.innerHTML='<option value="">Seleccionar servicio…</option>'+d.services.map(s=>`<option value="${s.id}">${fmt(s.date)} · ${esc(clientName(s.clientId))} · ${esc(s.type)}</option>`).join("");
+  if(v)el.value=v;
+}
+function openCertificateSign(id){if(!canEditTechnical())return alert("Tu perfil no puede firmar certificados.");go("certificateSign");renderSignatureServiceSelect();$("sigService").value=id;loadCertificateSignatures()}
+function loadCertificateSignatures(){
+  const id=$("sigService")?.value,d=state(),s=d.services.find(x=>x.id===id);if(!s)return;
+  $("sigTechName").value=s.technicianName||(isTech()?sessionUser.name:"");
+  $("sigClientName").value=s.receivedBy||"";
+  $("sigClientRole").value=s.receivedByRole||"";
+  $("sigServiceInfo").innerHTML=`<b>${esc(clientName(s.clientId))}</b><br>${fmt(s.date)} · ${esc(s.type)}<br>${esc(s.areas||"")}`;
+  drawSavedSignature("tech",s.technicianSignature||"");drawSavedSignature("client",s.clientSignature||"");
+}
+function saveCertificateSignatures(){
+  if(!canEditTechnical())return alert("Tu perfil no puede firmar certificados.");
+  const id=$("sigService").value,d=state(),s=d.services.find(x=>x.id===id);if(!s)return alert("Selecciona un servicio.");
+  const tn=$("sigTechName").value.trim(),cn=$("sigClientName").value.trim();
+  if(!tn||!cn)return alert("Completa el nombre del técnico y de quien recibe.");
+  if(!$("sigTechCanvas").dataset.signed||!$("sigClientCanvas").dataset.signed)return alert("Se necesitan las dos firmas.");
+  s.technicianName=tn;s.technicianSignature=$("sigTechCanvas").toDataURL("image/png");
+  s.receivedBy=cn;s.receivedByRole=$("sigClientRole").value.trim();s.clientSignature=$("sigClientCanvas").toDataURL("image/png");
+  s.certificateSignedAt=new Date().toISOString();save(d);alert("Firmas guardadas en el certificado.");renderCerts()
+}
+function printSelectedSignedCertificate(){const id=$("sigService").value;if(!id)return alert("Selecciona un servicio.");printCertificate(id)}
+
+function printCertificate(id){
+  const d=state(),s=d.services.find(x=>x.id===id),cst=d.clients.find(x=>x.id===s.clientId)||{};
+  const certNo="RX-"+(s.date||"").replaceAll("-","")+"-"+String(d.services.indexOf(s)+1).padStart(3,"0");
+
+  // Coordenadas calibradas directamente sobre la plantilla 1086 × 1448 px.
+  // La hoja visual conserva proporción 3:4 dentro de una página A4, evitando
+  // el recorte que antes desplazaba los datos.
+  const px=(x)=>`${(x/1086)*100}%`;
+  const py=(y)=>`${(y/1448)*100}%`;
+
+  const field=(text,x,y,w,cls="") =>
+    `<div class="v ${cls}" style="left:${px(x)};top:${py(y)};width:${px(w)}">${esc(text||"")}</div>`;
+  const sigimg=(src,x,y,w,h)=>src?`<img class="sig" src="${src}" style="left:${px(x)};top:${py(y)};width:${px(w)};height:${py(h)}">`:"";
+
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Certificado ROKELUX</title>
+  <style>
+    @page{size:A4 portrait;margin:0}
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:#d9d9d9;font-family:Arial,Helvetica,sans-serif}
+    .page{
+      position:relative;width:210mm;height:297mm;margin:0 auto;background:#fff;
+      display:flex;align-items:flex-start;justify-content:center;padding-top:8.5mm;overflow:hidden
+    }
+    .sheet{
+      position:relative;width:210mm;height:280mm;flex:0 0 auto;overflow:hidden;background:white
+    }
+    .sheet>img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill}
+    .v{
+      position:absolute;color:#111;font-size:8.1pt;line-height:1.05;font-weight:700;
+      white-space:nowrap;overflow:hidden;text-overflow:clip
+    }
+    .v.small{font-size:7.1pt;font-weight:700}
+    .v.obs{font-size:7.3pt;white-space:normal;line-height:1.18;font-weight:500;overflow:hidden}
+    .v.center{text-align:center}
+    .sig{position:absolute;object-fit:contain;filter:contrast(1.2)}
+    @media print{html,body{background:white}.page{margin:0}}
+  </style></head><body>
+  <div class="page"><div class="sheet">
+    <img src="certificate_template.png" alt="Certificado ROKELUX">
+
+    ${field(certNo,874,386,150,"small")}
+    ${field(fmt(s.date),909,436,124,"small")}
+
+    ${field(cst.name,198,621,372)}
+    ${field(cst.doc,198,648,372)}
+    ${field(cst.address,198,675,372)}
+    ${field(cst.address,198,702,372)}
+
+    ${field(s.type,785,621,245,"small")}
+    ${field(fmt(s.date),785,648,245)}
+    ${field(s.areas,785,675,245,"small")}
+
+    ${field(s.otherProduct,614,920,75,"small")}
+    ${field(s.notes||"Sin observaciones adicionales.",458,1048,560,"obs")}
+
+    ${field(s.technicianName||"",122,1185,145,"small")}
+    ${sigimg(s.technicianSignature,118,1195,150,46)}
+    ${field(s.certificateSignedAt?new Date(s.certificateSignedAt).toLocaleDateString("es-EC"):"",122,1252,145,"small")}
+
+    ${field(s.receivedBy||"",860,1185,145,"small")}
+    ${field(s.receivedByRole||"",860,1215,145,"small")}
+    ${sigimg(s.clientSignature,855,1222,155,38)}
+    ${field(s.certificateSignedAt?new Date(s.certificateSignedAt).toLocaleDateString("es-EC"):"",860,1252,145,"small")}
+  </div></div>
+  <script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script>
+  </body></html>`;
+
+  const w=window.open("","_blank");
+  w.document.open();w.document.write(html);w.document.close();
+}
+function renderHome(){const d=state();$("stClients").textContent=d.clients.length;$("stServices").textContent=d.services.length;$("stPending").textContent=d.inspections.length;$("stCerts").textContent=d.services.length;const upcoming=[...d.services].sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);$("nextServices").innerHTML=upcoming.length?upcoming.map(s=>`<div class="item"><div class="avatar">🗓️</div><div class="meta"><b>${esc(clientName(s.clientId))}</b><small>${esc(s.type)} · ${fmt(s.date)}</small></div><span>›</span></div>`).join(""):`<div class="empty">No hay servicios programados.</div>`}
+function renderCalendar(){const d=state(),now=new Date(),year=now.getFullYear(),month=now.getMonth();$("monthLabel").textContent=now.toLocaleDateString("es-EC",{month:"long",year:"numeric"});const first=new Date(year,month,1).getDay(),days=new Date(year,month+1,0).getDate();let html="";for(let i=0;i<first;i++)html+='<div></div>';for(let day=1;day<=days;day++){const ds=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`,has=d.services.some(s=>s.date===ds),today=day===now.getDate();html+=`<div class="calday ${has?"has":""} ${today?"today":""}">${day}</div>`}$("calendarGrid").innerHTML=html;const arr=d.services.filter(s=>{const dt=new Date(s.date+"T12:00");return dt.getFullYear()===year&&dt.getMonth()===month});$("calendarServices").innerHTML=arr.length?arr.map(s=>`<div class="item"><div class="avatar">🛠</div><div class="meta"><b>${esc(clientName(s.clientId))}</b><small>${fmt(s.date)} · ${esc(s.type)}</small></div></div>`).join(""):`<div class="empty">Sin servicios este mes.</div>`}
+function exportData(){const blob=new Blob([JSON.stringify(state(),null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="ROKELUX_respaldo.json";a.click();URL.revokeObjectURL(a.href)}
+function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{JSON.parse(r.result);localStorage.setItem("rokelux_data",r.result);renderAll();alert("Respaldo importado.")}catch{alert("Archivo no válido.")}};r.readAsText(f)}
+function resetApp(){if(confirm("¿Borrar todos los datos guardados en este dispositivo?")){localStorage.removeItem("rokelux_data");location.reload()}}
+function fmt(d){if(!d)return"";return new Date(d+"T12:00").toLocaleDateString("es-EC")}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+
+
+function money(v){return "$"+Number(v||0).toFixed(2)}
+function getDocItems(tbodyId){
+  return [...document.querySelectorAll(`#${tbodyId} tr`)].map(r=>({
+    description:r.querySelector(".desc").value.trim(),
+    qty:Number(r.querySelector(".qty").value||0),
+    price:Number(r.querySelector(".price").value||0)
+  })).filter(x=>x.description&&x.qty>0);
+}
+function addDocItem(tbodyId, calcFn, item={description:"",qty:1,price:0}){
+  const tb=$(tbodyId); if(!tb)return;
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td><input class="desc" value="${esc(item.description)}" placeholder="Servicio / producto"></td>
+  <td><input class="qty" type="number" min="0" step="1" value="${item.qty}" oninput="${calcFn}()"></td>
+  <td><input class="price" type="number" min="0" step="0.01" value="${item.price}" oninput="${calcFn}()"></td>
+  <td class="line-total money">$0.00</td><td><button class="btn ghost" onclick="this.closest('tr').remove();${calcFn}()">×</button></td>`;
+  tb.appendChild(tr); window[calcFn]();
+}
+function calcDoc(tbodyId){
+  let total=0;
+  document.querySelectorAll(`#${tbodyId} tr`).forEach(r=>{
+    const v=Number(r.querySelector(".qty").value||0)*Number(r.querySelector(".price").value||0);
+    r.querySelector(".line-total").textContent=money(v); total+=v;
+  }); return total;
+}
+function addQuoteItem(item){addDocItem("qItems","calcQuote",item)}
+function calcQuote(){const s=calcDoc("qItems");if($("qSubtotal"))$("qSubtotal").textContent=money(s);if($("qTotal"))$("qTotal").textContent=money(s)}
+function addInvoiceItem(item){addDocItem("fItems","calcInvoice",item)}
+function calcInvoice(){
+  const sub=calcDoc("fItems"),rate=Number($("fVat")?.value||0),vat=sub*rate/100,total=sub+vat;
+  if($("fSubtotal"))$("fSubtotal").textContent=money(sub);
+  if($("fVatAmount"))$("fVatAmount").textContent=money(vat);
+  if($("fTotal"))$("fTotal").textContent=money(total);
+}
+function saveQuote(){if(!isAdmin())return alert("Solo el perfil administrativo puede crear cotizaciones.");
+  const d=state(),clientId=$("qClient").value,items=getDocItems("qItems"); if(!clientId)return alert("Selecciona un cliente."); if(!items.length)return alert("Agrega al menos un ítem.");
+  const total=items.reduce((a,x)=>a+x.qty*x.price,0);
+  d.quotes.push({id:crypto.randomUUID(),number:"COT-"+String(d.quotes.length+1).padStart(5,"0"),clientId,date:$("qDate").value,validity:Number($("qValidity").value||15),notes:$("qNotes").value,items,total,status:"Borrador"});
+  save(d);$("qItems").innerHTML="";addQuoteItem();$("qNotes").value="";alert("Cotización guardada.");renderQuotes();
+}
+function quoteStatusClass(s){return String(s||"").toLowerCase()}
+function renderQuotes(){
+  const d=state(),el=$("quoteList");if(!el)return;
+  el.innerHTML=d.quotes.length?[...d.quotes].reverse().map(q=>`<div class="item"><div class="avatar">💵</div><div class="meta"><b>${esc(q.number)} · ${esc(clientName(q.clientId))}</b><small>${fmt(q.date)} · ${money(q.total)} · ${esc(q.status)}</small></div><button class="btn ghost" onclick="printQuote('${q.id}')">PDF</button><button class="btn primary" onclick="quoteToInvoice('${q.id}')">Facturar</button></div>`).join(""):`<div class="empty">No hay cotizaciones.</div>`;
+}
+
+function docLogoUrl(){return new URL("logo.png",location.href).href}
+function docBaseCss(extra=""){
+  return `
+  @page{size:A4;margin:0}
+  *{box-sizing:border-box}
+  body{margin:0;background:#e9ece9;font-family:Arial,Helvetica,sans-serif;color:#151a16}
+  .page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;position:relative;padding:14mm 15mm 18mm}
+  .hero{background:linear-gradient(135deg,#07100a,#101a12 68%,#18351a);border-radius:18px;padding:15px 18px;color:white;display:flex;justify-content:space-between;align-items:center;gap:20px}
+  .hero img{width:55mm;max-height:18mm;object-fit:contain;object-position:left center}
+  .hero .company{text-align:right;font-size:9px;line-height:1.45;color:#dfe8e0}.hero .company b{display:block;color:#9dff3f;font-size:10px;letter-spacing:.6px}
+  .title{margin:15px 0 4px;font-size:24px;letter-spacing:.3px}.subtitle{color:#667068;font-size:10px;margin-bottom:12px}
+  .accent{height:3px;width:44mm;background:#7bdd00;border-radius:9px;margin:8px 0 14px}
+  .card{border:1px solid #dfe6df;border-radius:14px;padding:11px 12px;margin-top:10px;background:#fbfcfb}
+  .card h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#2f4932}
+  .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 16px;font-size:10px}.meta-grid b{color:#243b27}
+  .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eaf7df;color:#3a6d13;font-size:9px;font-weight:700;margin:2px}
+  table{width:100%;border-collapse:collapse;font-size:9.5px}th{background:#101712;color:#fff;text-align:left;padding:7px}td{padding:7px;border-bottom:1px solid #e2e7e2;vertical-align:top}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:11px}.kpi{border:1px solid #dfe6df;border-radius:12px;padding:9px;background:#f8faf8}.kpi b{display:block;font-size:19px;color:#62a900}.kpi span{font-size:8.5px;color:#667068}
+  .barrow{display:grid;grid-template-columns:33mm 1fr 10mm;gap:7px;align-items:center;margin:6px 0;font-size:9px}.track{height:7px;background:#e8ede8;border-radius:8px;overflow:hidden}.fill{height:100%;background:linear-gradient(90deg,#72c500,#a1ef43);border-radius:8px}
+  .section{margin-top:13px}.section h2{font-size:12px;margin:0 0 7px;color:#18331b;text-transform:uppercase;letter-spacing:.5px}
+  .analysis{background:linear-gradient(135deg,#f4f8f2,#eef7e8);border-left:4px solid #78d900}
+  .signatures{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:25px}.sigbox{min-height:28mm;border-top:1px solid #7e887f;padding-top:7px;font-size:9px}.sigbox img{height:18mm;max-width:55mm;object-fit:contain}
+  .footer{position:absolute;left:15mm;right:15mm;bottom:8mm;border-top:1px solid #dfe5df;padding-top:5px;display:flex;justify-content:space-between;font-size:8px;color:#5d675f}
+  .status-note{padding:9px 10px;border-radius:10px;background:#fff4ce;border:1px solid #e7cf76;font-size:9px;margin-top:10px}
+  .photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.photo-grid img{width:100%;height:48mm;object-fit:cover;border-radius:10px;border:1px solid #e0e5e0}
+  .totalbox{margin-left:auto;width:68mm;background:#101712;color:#fff;border-radius:14px;padding:11px;margin-top:12px}.totalbox div{display:flex;justify-content:space-between;margin:5px 0;font-size:10px}.totalbox .grand{font-size:16px;color:#a4f748;font-weight:900;border-top:1px solid #314034;padding-top:8px}
+  .avoid{break-inside:avoid}
+  @media print{body{background:#fff}.page{margin:0;box-shadow:none}}
+  ${extra}`
+}
+function docHeader(title,subtitle=""){
+  return `<div class="hero"><img src="${docLogoUrl()}" alt="ROKELUX"><div class="company"><b>PEST MANAGEMENT & BIOSECURITY</b>RUC 2293544916001<br>099 498 1292 · rokelux@proton.me<br>Luis Uquillas y Sanmiguel</div></div><h1 class="title">${title}</h1><div class="accent"></div>${subtitle?`<div class="subtitle">${subtitle}</div>`:""}`
+}
+
+function printQuote(id){
+  const d=state(),q=d.quotes.find(x=>x.id===id),cl=d.clients.find(x=>x.id===q.clientId)||{};
+  const rows=q.items.map(x=>`<tr><td>${esc(x.description)}</td><td>${x.qty}</td><td>${money(x.price)}</td><td>${money(x.qty*x.price)}</td></tr>`).join("");
+  const h=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(q.number)}</title><style>${docBaseCss()}</style></head><body><div class="page">
+  ${docHeader(`COTIZACIÓN ${esc(q.number)}`,"Propuesta comercial ROKELUX")}
+  <div class="card"><div class="meta-grid"><div><b>Cliente:</b> ${esc(cl.name||"")}</div><div><b>RUC/C.I.:</b> ${esc(cl.doc||"")}</div><div><b>Dirección:</b> ${esc(cl.address||"")}</div><div><b>Fecha:</b> ${fmt(q.date)}</div><div><b>Validez:</b> ${q.validity} días</div><div><b>Estado:</b> ${esc(q.status||"Pendiente")}</div></div></div>
+  <div class="section avoid"><h2>Detalle de servicios</h2><table><tr><th>Descripción</th><th>Cant.</th><th>P. unit.</th><th>Total</th></tr>${rows}</table></div>
+  ${q.notes?`<div class="card analysis"><h3>Alcance / observaciones</h3><div style="font-size:10px;line-height:1.5">${esc(q.notes)}</div></div>`:""}
+  <div class="totalbox"><div><span>Subtotal</span><b>${money(q.subtotal||q.total)}</b></div><div class="grand"><span>TOTAL</span><span>${money(q.total)}</span></div></div>
+  <div class="footer"><span>ROKELUX · Protegemos lo que más importa.</span><span>Cotización ${esc(q.number)}</span></div>
+  </div><script>window.onload=()=>window.print()<\/script></body></html>`;
+  const w=window.open("","_blank");w.document.write(h);w.document.close();
+}
+function quoteToInvoice(id){
+  const d=state(),q=d.quotes.find(x=>x.id===id); if(!q)return; go("billing");$("fClient").value=q.clientId;$("fItems").innerHTML="";q.items.forEach(addInvoiceItem);calcInvoice();
+}
+function invoiceStatusClass(s){s=String(s||"").toLowerCase();if(s.includes("pendiente"))return"pendiente";if(s.includes("autorizada"))return"autorizada";if(s.includes("rechazada"))return"rechazada";return"borrador"}
+function saveInvoice(){if(!isAdmin())return alert("Solo el perfil administrativo puede gestionar facturación.");
+  const d=state(),clientId=$("fClient").value,items=getDocItems("fItems");if(!clientId)return alert("Selecciona un cliente.");if(!items.length)return alert("Agrega al menos un ítem.");
+  const subtotal=items.reduce((a,x)=>a+x.qty*x.price,0),vatRate=Number($("fVat").value||0),vat=subtotal*vatRate/100,total=subtotal+vat;
+  d.invoices.push({id:crypto.randomUUID(),clientId,number:$("fNumber").value||("001-001-"+String(d.invoices.length+1).padStart(9,"0")),date:$("fDate").value,vatRate,vat,subtotal,total,status:$("fStatus").value,accessKey:$("fAccessKey").value,items});
+  save(d);$("fItems").innerHTML="";addInvoiceItem();alert("Comprobante guardado.");renderInvoices();
+}
+function renderInvoices(){
+  const d=state(),el=$("invoiceList");if(!el)return;
+  el.innerHTML=d.invoices.length?[...d.invoices].reverse().map(f=>`<div class="item"><div class="avatar">🧾</div><div class="meta"><b>${esc(f.number)} · ${esc(clientName(f.clientId))}</b><small>${fmt(f.date)} · ${money(f.total)}</small></div><span class="invoice-status ${invoiceStatusClass(f.status)}">${esc(f.status)}</span><button class="btn ghost" onclick="printInvoice('${f.id}')">PDF</button></div>`).join(""):`<div class="empty">No hay comprobantes.</div>`;
+}
+function printInvoice(id){
+  const d=state(),f=d.invoices.find(x=>x.id===id),cl=d.clients.find(x=>x.id===f.clientId)||{};
+  const rows=f.items.map(x=>`<tr><td>${esc(x.description)}</td><td>${x.qty}</td><td>${money(x.price)}</td><td>${money(x.qty*x.price)}</td></tr>`).join("");
+  const legal=f.status==="Autorizada SRI"?"":`<div class="status-note"><b>BORRADOR / GESTIÓN INTERNA:</b> este documento no sustituye un comprobante electrónico autorizado por el SRI mientras no exista autorización válida.</div>`;
+  const h=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(f.number)}</title><style>${docBaseCss()}</style></head><body><div class="page">
+  ${docHeader(`COMPROBANTE ${esc(f.number)}`,"Documento de gestión administrativa")}
+  ${legal}
+  <div class="card"><div class="meta-grid"><div><b>Cliente:</b> ${esc(cl.name||"")}</div><div><b>RUC/C.I.:</b> ${esc(cl.doc||"")}</div><div><b>Dirección:</b> ${esc(cl.address||"")}</div><div><b>Fecha:</b> ${fmt(f.date)}</div><div><b>Estado:</b> ${esc(f.status)}</div><div><b>Clave/Autorización:</b> ${esc(f.accessKey||"—")}</div></div></div>
+  <div class="section avoid"><h2>Detalle</h2><table><tr><th>Descripción</th><th>Cant.</th><th>P. unit.</th><th>Total</th></tr>${rows}</table></div>
+  <div class="totalbox"><div><span>Subtotal</span><span>${money(f.subtotal)}</span></div><div><span>IVA (${f.vatRate}%)</span><span>${money(f.vat)}</span></div><div class="grand"><span>TOTAL</span><span>${money(f.total)}</span></div></div>
+  <div class="footer"><span>ROKELUX · RUC 2293544916001</span><span>${esc(f.number)}</span></div>
+  </div><script>window.onload=()=>window.print()<\/script></body></html>`;
+  const w=window.open("","_blank");w.document.write(h);w.document.close();
+}
+function renderServiceReports(){
+  const d=state(),sel=$("srService"),list=$("serviceReportList");if(!sel||!list)return;
+  const cur=sel.value;sel.innerHTML='<option value="">Seleccionar servicio…</option>'+[...d.services].reverse().map(s=>`<option value="${s.id}">${fmt(s.date)} · ${esc(clientName(s.clientId))} · ${esc(s.type)}</option>`).join("");if(cur)sel.value=cur;
+  list.innerHTML=d.services.length?[...d.services].reverse().map(s=>`<div class="item"><div class="avatar">📋</div><div class="meta"><b>${esc(clientName(s.clientId))}</b><small>${fmt(s.date)} · ${esc(s.type)}</small></div><button class="btn primary" onclick="$('srService').value='${s.id}';printServiceReport()">Informe</button></div>`).join(""):`<div class="empty">No hay servicios realizados.</div>`;
+}
+function printServiceReport(){
+  const id=$("srService").value;if(!id)return alert("Selecciona un servicio.");
+  const d=state(),s=d.services.find(x=>x.id===id),cl=d.clients.find(x=>x.id===s.clientId)||{};
+  const activity=(s.activity||[]).map(a=>`<tr><td>${esc(a.pest)}</td><td><span class="pill">${esc(a.level)}</span></td><td>${a.count||0}</td></tr>`).join("")||"<tr><td colspan='3'>Sin niveles registrados</td></tr>";
+  const photos=(s.photos||[]).map(p=>`<img src="${p}">`).join("");
+  const techSig=s.technicianSignature?`<img src="${s.technicianSignature}"><br>`:"";
+  const clientSig=s.clientSignature?`<img src="${s.clientSignature}"><br>`:"";
+  const h=`<!doctype html><html><head><meta charset="utf-8"><title>Informe ${esc(cl.name||"")}</title><style>${docBaseCss()}</style></head><body><div class="page">
+  ${docHeader("INFORME TÉCNICO DE SERVICIO",`${esc(s.type)} · ${fmt(s.date)}`)}
+  <div class="card"><h3>Datos del servicio</h3><div class="meta-grid"><div><b>Cliente:</b> ${esc(cl.name||"")}</div><div><b>RUC/C.I.:</b> ${esc(cl.doc||"")}</div><div><b>Dirección:</b> ${esc(cl.address||"")}</div><div><b>Fecha:</b> ${fmt(s.date)}</div><div><b>Servicio:</b> ${esc(s.type)}</div><div><b>Áreas intervenidas:</b> ${esc(s.areas||"")}</div></div></div>
+  <div class="card"><h3>Control realizado</h3><div><b style="font-size:10px">Plagas / vectores:</b><div style="margin-top:5px">${(s.pests||[]).length?(s.pests||[]).map(x=>`<span class="pill">${esc(x)}</span>`).join(""):"<span class='pill'>No registrados</span>"}</div></div><div style="margin-top:10px"><b style="font-size:10px">Productos / métodos:</b><div style="margin-top:5px">${[...(s.products||[]),s.otherProduct].filter(Boolean).map(x=>`<span class="pill">${esc(x)}</span>`).join("")||"<span class='pill'>No registrados</span>"}</div></div></div>
+  <div class="section avoid"><h2>Nivel de actividad / incidencias</h2><table><tr><th>Plaga / vector</th><th>Nivel</th><th>Cantidad</th></tr>${activity}</table></div>
+  <div class="card analysis"><h3>Observaciones y recomendaciones</h3><div style="font-size:10px;line-height:1.55">${esc(s.notes||"Sin observaciones adicionales.")}</div></div>
+  ${photos?`<div class="section"><h2>Evidencia fotográfica</h2><div class="photo-grid">${photos}</div></div>`:""}
+  <div class="signatures avoid"><div class="sigbox">${techSig}<b>${esc(s.technicianName||"Técnico responsable")}</b><br>Técnico ROKELUX</div><div class="sigbox">${clientSig}<b>${esc(s.receivedBy||"Recibido por")}</b><br>${esc(s.receivedByRole||"Cliente / representante")}</div></div>
+  <div class="footer"><span>ROKELUX · 099 498 1292 · rokelux@proton.me</span><span>Informe técnico</span></div>
+  </div><script>window.onload=()=>window.print()<\/script></body></html>`;
+  const w=window.open("","_blank");w.document.write(h);w.document.close();
+}
+function renderBusinessSelects(){
+  const d=state(),opts='<option value="">Seleccionar cliente…</option>'+d.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  ["qClient","fClient","mClient","uClient"].forEach(id=>{const e=$(id);if(e){const v=e.value;if(isClient()&&id==="mClient"){const c=d.clients.find(x=>x.id===currentClientId());e.innerHTML=c?`<option value="${c.id}">${esc(c.name)}</option>`:"";e.disabled=true}else{e.innerHTML=opts;e.disabled=false}if(v)e.value=v}});
+}
+function getCurrentMap(){
+  const d=state(),cid=$("mClient")?.value;if(!cid)return null;
+  let m=d.stationMaps.find(x=>x.clientId===cid);
+  if(!m){m={id:crypto.randomUUID(),clientId:cid,site:"",background:""};d.stationMaps.push(m);save(d)}
+  return m;
+}
+function saveMapMeta(){
+  const d=state(),cid=$("mClient")?.value;if(!cid)return;
+  let m=d.stationMaps.find(x=>x.clientId===cid);if(!m){m={id:crypto.randomUUID(),clientId:cid,site:"",background:""};d.stationMaps.push(m)}
+  m.site=$("mSite").value;localStorage.setItem("rokelux_data",JSON.stringify(d));
+}
+function setMapBackground(e){
+  const file=e.target.files[0];if(!file||!$("mClient").value)return alert("Selecciona primero un cliente.");
+  const r=new FileReader();r.onload=()=>{const d=state(),cid=$("mClient").value;let m=d.stationMaps.find(x=>x.clientId===cid);if(!m){m={id:crypto.randomUUID(),clientId:cid,site:"",background:""};d.stationMaps.push(m)}m.background=r.result;save(d);renderStationMap()};r.readAsDataURL(file)
+}
+function renderStationMap(){
+  const d=state(),cid=$("mClient")?.value,map=$("rodentMap"),list=$("stationList");if(!map||!list)return;
+  if(!cid){map.innerHTML="";list.innerHTML='<div class="empty">Selecciona un cliente.</div>';return}
+  const meta=d.stationMaps.find(x=>x.clientId===cid)||{site:"",background:""};$("mSite").value=meta.site||"";
+  if(meta.background){map.classList.add("has-bg");map.style.backgroundImage=`url("${meta.background}")`}else{map.classList.remove("has-bg");map.style.backgroundImage=""}
+  const sts=d.stations.filter(x=>x.clientId===cid);
+  map.innerHTML=sts.map(s=>`<button class="station-pin ${s.status==="Revisar"?"attention":s.status==="Reemplazar"?"replace":""}" style="left:${s.x}%;top:${s.y}%" onclick="event.stopPropagation();editStation('${s.id}')" title="${esc(s.code)} · ${esc(s.status)}">${esc(s.code)}</button>`).join("");
+  list.innerHTML=sts.length?sts.sort((a,b)=>a.code.localeCompare(b.code)).map(s=>`<div class="item"><div class="avatar">📍</div><div class="meta"><b>${esc(s.code)} · ${esc(s.status)}</b><small>Última revisión: ${fmt(s.lastCheck)||"—"}<br>${esc(s.notes||"")}</small></div><button class="btn ghost" onclick="editStation('${s.id}')">Editar</button></div>`).join(""):`<div class="empty">Toca el mapa para agregar la primera estación.</div>`;
+}
+function addStationFromMap(e){if(!canEditTechnical())return alert("El cliente puede consultar el mapa, pero no editar estaciones.");
+  const cid=$("mClient").value;if(!cid)return alert("Selecciona un cliente.");
+  if(e.target.closest(".station-pin"))return;
+  const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*100,y=(e.clientY-r.top)/r.height*100;
+  const d=state(),num=d.stations.filter(s=>s.clientId===cid).length+1;
+  const code=prompt("Código de estación:",`E${String(num).padStart(2,"0")}`);if(!code)return;
+  d.stations.push({id:crypto.randomUUID(),clientId:cid,code,x,y,status:"Operativa",lastCheck:new Date().toISOString().slice(0,10),notes:""});
+  save(d);renderStationMap()
+}
+function editStation(id){if(!canEditTechnical())return alert("El cliente puede consultar el mapa, pero no editar estaciones.");
+  const d=state(),s=d.stations.find(x=>x.id===id);if(!s)return;
+  const status=prompt("Estado: Operativa / Revisar / Reemplazar",s.status);if(status===null)return;
+  const notes=prompt("Observaciones:",s.notes||"");if(notes===null)return;
+  s.status=["Operativa","Revisar","Reemplazar"].includes(status)?status:"Operativa";s.notes=notes;s.lastCheck=new Date().toISOString().slice(0,10);save(d);renderStationMap()
+}
+function clearStationMap(){if(!canEditTechnical())return alert("Tu perfil no puede borrar estaciones.");
+  const cid=$("mClient").value;if(!cid||!confirm("¿Eliminar todas las estaciones de este cliente?"))return;
+  const d=state();d.stations=d.stations.filter(s=>s.clientId!==cid);save(d);renderStationMap()
+}
+function printStationMap(){
+  const d=state(),cid=$("mClient").value;if(!cid)return alert("Selecciona un cliente.");const cl=d.clients.find(x=>x.id===cid)||{},meta=d.stationMaps.find(x=>x.clientId===cid)||{},sts=d.stations.filter(x=>x.clientId===cid);
+  const pins=sts.map(s=>`<div class="pin ${s.status==="Revisar"?"a":s.status==="Reemplazar"?"r":""}" style="left:${s.x}%;top:${s.y}%">${esc(s.code)}</div>`).join("");
+  const rows=sts.map(s=>`<tr><td>${esc(s.code)}</td><td>${esc(s.status)}</td><td>${fmt(s.lastCheck)}</td><td>${esc(s.notes||"")}</td></tr>`).join("");
+  const extra=`@page{size:A4 landscape;margin:0}.page{width:297mm;min-height:210mm;padding:10mm 12mm 16mm}.hero img{width:46mm}.mapdoc{position:relative;width:100%;height:100mm;border:1px solid #bfc8bf;border-radius:14px;overflow:hidden;background:${meta.background?`url('${meta.background}') center/cover no-repeat`:"#f4f6f4"}}.pin{position:absolute;transform:translate(-50%,-50%);width:25px;height:25px;border-radius:50%;background:#7bdd00;border:2px solid #111;display:grid;place-items:center;font-size:8px;font-weight:bold}.pin.a{background:#ffd45f}.pin.r{background:#ff806e}.footer{left:12mm;right:12mm}`;
+  const h=`<!doctype html><html><head><meta charset="utf-8"><title>Mapa estaciones ${esc(cl.name||"")}</title><style>${docBaseCss(extra)}</style></head><body><div class="page">
+  ${docHeader("MAPA DE ESTACIONES DE CONTROL DE ROEDORES",`${esc(cl.name||"")} · ${esc(meta.site||cl.address||"")}`)}
+  <div class="mapdoc">${pins}</div>
+  <div class="section"><h2>Inventario de estaciones</h2><table><tr><th>Estación</th><th>Estado</th><th>Última revisión</th><th>Observaciones</th></tr>${rows||"<tr><td colspan='4'>Sin estaciones registradas</td></tr>"}</table></div>
+  <div class="footer"><span>ROKELUX · Control sanitario de roedores</span><span>${esc(cl.name||"")}</span></div>
+  </div><script>window.onload=()=>window.print()<\/script></body></html>`;
+  const w=window.open("","_blank");w.document.write(h);w.document.close();
+}
+function clientServices(){const d=state();return d.services.filter(s=>s.clientId===currentClientId())}
+function clientQuotes(){const d=state();return d.quotes.filter(q=>q.clientId===currentClientId())}
+function clientInvoices(){const d=state();return d.invoices.filter(f=>f.clientId===currentClientId())}
+function clientGoServices(){go("history")}
+function clientGoReports(){go("reports")}
+function clientGoDocs(){go("clientDocs")}
+function clientGoQuotes(){go("clientQuotes")}
+function clientGoInvoices(){go("clientInvoices")}
+function clientGoStations(){go("stations")}
+function renderClientPortal(){
+  if(!$("clientPortal")||!isClient())return;
+  const d=state(),c=d.clients.find(x=>x.id===currentClientId())||{},svc=clientServices(),quotes=clientQuotes();
+  $("clientWelcome").textContent=`${c.name||"Cliente"} · Consulta el estado y evolución de tus servicios.`;
+  const latest=[...svc].sort((a,b)=>b.date.localeCompare(a.date))[0];
+  $("cpLastActivity").textContent=latest?fmt(latest.date):"Sin datos";
+  $("cpOpenQuotes").textContent=quotes.filter(q=>!["Aceptada","Rechazada"].includes(q.status)).length;
+  const events=[
+    ...svc.map(s=>({date:s.date,icon:"🛠",title:s.type,sub:(s.pests||[]).join(", ")})),
+    ...quotes.map(q=>({date:q.date,icon:"💵",title:`Cotización ${q.number}`,sub:`${money(q.total)} · ${q.status}`}))
+  ].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6);
+  $("clientRecent").innerHTML=events.length?events.map(e=>`<div class="item"><div class="avatar">${e.icon}</div><div class="meta"><b>${esc(e.title)}</b><small>${fmt(e.date)} · ${esc(e.sub||"")}</small></div></div>`).join(""):`<div class="empty">Aún no hay actividad registrada.</div>`;
+}
+function renderClientDocs(){
+  const el=$("clientDocsList");if(!el||!isClient())return;const svc=clientServices();
+  el.innerHTML=svc.length?[...svc].reverse().map(s=>`<div class="item"><div class="avatar">📄</div><div class="meta"><b>${fmt(s.date)} · ${esc(s.type)}</b><small>Certificado e informe técnico disponibles</small></div><button class="btn ghost" onclick="printCertificate('${s.id}')">Certificado</button><button class="btn primary" onclick="$('srService').value='${s.id}';printServiceReport()">Informe</button></div>`).join(""):`<div class="empty">No hay documentos disponibles.</div>`;
+}
+function renderClientQuotes(){
+  const el=$("clientQuoteList");if(!el||!isClient())return;const arr=clientQuotes();
+  el.innerHTML=arr.length?[...arr].reverse().map(q=>`<div class="item"><div class="avatar">💵</div><div class="meta"><b>${esc(q.number)} · ${money(q.total)}</b><small>${fmt(q.date)} · ${esc(q.status)}</small><div class="quote-actions">${!["Aceptada","Rechazada"].includes(q.status)?`<button class="btn primary" onclick="clientQuoteDecision('${q.id}','Aceptada')">Aprobar</button><button class="btn ghost" onclick="clientQuoteDecision('${q.id}','Rechazada')">Rechazar</button>`:""}</div></div><button class="btn ghost" onclick="printQuote('${q.id}')">PDF</button></div>`).join(""):`<div class="empty">No tienes cotizaciones.</div>`;
+}
+function clientQuoteDecision(id,status){
+  const d=state(),q=d.quotes.find(x=>x.id===id&&x.clientId===currentClientId());if(!q)return;
+  if(!confirm(`¿Deseas marcar esta cotización como ${status.toLowerCase()}?`))return;
+  q.status=status;q.clientDecisionAt=new Date().toISOString();save(d);renderClientQuotes();renderClientPortal()
+}
+function renderClientInvoices(){
+  const el=$("clientInvoiceList");if(!el||!isClient())return;const arr=clientInvoices();
+  el.innerHTML=arr.length?[...arr].reverse().map(f=>`<div class="item"><div class="avatar">🧾</div><div class="meta"><b>${esc(f.number)} · ${money(f.total)}</b><small>${fmt(f.date)} · ${esc(f.status)}</small></div><button class="btn primary" onclick="printInvoice('${f.id}')">Ver / PDF</button></div>`).join(""):`<div class="empty">No tienes facturas registradas.</div>`;
+}
+function submitClientRequest(){
+  if(!isClient())return;const msg=$("reqMessage").value.trim();if(!msg)return alert("Escribe un mensaje.");
+  const d=state(),file=$("reqPhoto").files[0],finish=(photo)=>{d.requests.push({id:crypto.randomUUID(),clientId:currentClientId(),userId:sessionUser.id,type:$("reqType").value,message:msg,photo:photo||"",date:new Date().toISOString(),status:"Nueva"});save(d);$("reqMessage").value="";$("reqPhoto").value="";alert("Solicitud enviada a ROKELUX.");renderClientPortal()};
+  if(file){const r=new FileReader();r.onload=()=>finish(r.result);r.readAsDataURL(file)}else finish("")
+}
+function toggleUserClientLink(){$("uClientWrap").style.display=$("uRole").value==="client"?"block":"none"}
+
+function saveUser(){
+  if(!isAdmin())return alert("Solo el administrador puede crear usuarios.");
+  const d=state(),name=$("uName").value.trim(),username=$("uUser").value.trim(),password=$("uPass").value,role=$("uRole").value,clientId=role==="client"?$("uClient").value:null,active=$("uActive").value==="true";
+  if(!name||!username||!password)return alert("Completa nombre, usuario y contraseña.");
+  if(role==="client"&&!clientId)return alert("Vincula el usuario a un cliente.");
+  if(d.users.some(x=>x.username===username))return alert("Ese usuario ya existe.");
+  d.users.push({id:crypto.randomUUID(),name,username,password,role,clientId,active});
+  save(d);["uName","uUser","uPass"].forEach(id=>$(id).value="");$("uActive").value="true";renderUsers()
+}
+function toggleUserActive(id){
+  if(!isAdmin())return alert("Solo el administrador puede activar o inactivar usuarios.");
+  const d=state(),u=d.users.find(x=>x.id===id);if(!u)return;
+  if(sessionUser?.id===u.id&&u.active!==false)return alert("No puedes inactivar tu propia cuenta mientras estás conectado.");
+  u.active=u.active===false?true:false;save(d);renderUsers();
+}
+function renderUsers(){
+  const el=$("userList");if(!el||!isAdmin())return;const d=state();
+  el.innerHTML=d.users.map(u=>{const c=u.clientId?d.clients.find(x=>x.id===u.clientId):null,active=u.active!==false;return `<div class="item"><div class="avatar">${u.role==="admin"?"🛡️":u.role==="technician"?"🧰":"👤"}</div><div class="meta"><b>${esc(u.name)}</b><small>@${esc(u.username)} · ${roleLabel(u.role)}${c?` · ${esc(c.name)}`:""} · <b>${active?"Activo":"Inactivo"}</b></small></div><span class="role-pill role-${u.role==="technician"?"tech":u.role}">${roleLabel(u.role)}</span><button class="btn ${active?"secondary":"primary"}" onclick="toggleUserActive('${u.id}')">${active?"Inactivar":"Activar"}</button></div>`}).join("")
+}
+
+function renderReportSelect(){
+  const d=state(), el=$("rClient"); if(!el)return;
+  if(isClient()){
+    const c=d.clients.find(x=>x.id===currentClientId());el.innerHTML=c?`<option value="${c.id}">${esc(c.name)}</option>`:'<option value="">Sin cliente vinculado</option>';el.value=c?.id||"";el.disabled=true;return;
+  }
+  el.disabled=false;const current=el.value;
+  el.innerHTML='<option value="">Seleccionar cliente…</option>'+d.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  if(current)el.value=current;if(!el.value&&d.clients.length)el.value=d.clients[0].id;
+}
+function splitAreas(s){
+  return String(s||"").split(/[,;/|]+/).map(x=>x.trim()).filter(Boolean);
+}
+function filteredClientServices(){
+  const d=state(),cid=$("rClient")?.value,from=$("rFrom")?.value,to=$("rTo")?.value;
+  return d.services.filter(s=>s.clientId===cid && (!from || s.date>=from) && (!to || s.date<=to));
+}
+function countsFrom(arr, getter){
+  const m={}; arr.forEach(x=>getter(x).forEach(v=>m[v]=(m[v]||0)+1)); return m;
+}
+function renderBars(id, data){
+  const el=$(id); if(!el)return;
+  const entries=Object.entries(data).sort((a,b)=>b[1]-a[1]);
+  const max=Math.max(1,...entries.map(x=>x[1]));
+  el.innerHTML=entries.length?entries.map(([k,v])=>`<div class="bar-row"><div class="bar-label" title="${esc(k)}">${esc(k)}</div><div class="bar-track"><div class="bar-fill" style="width:${(v/max)*100}%"></div></div><div class="bar-value">${v}</div></div>`).join(""):`<div class="empty">Sin datos para este periodo.</div>`;
+}
+function monthlyCounts(services){
+  const m={};
+  services.forEach(s=>{
+    const key=(s.date||"").slice(0,7); if(key)m[key]=(m[key]||0)+1;
+  });
+  return Object.fromEntries(Object.entries(m).sort((a,b)=>a[0].localeCompare(b[0])));
+}
+function trendLabel(monthData){
+  const vals=Object.values(monthData);
+  if(vals.length<2)return {txt:"Sin tendencia",cls:"trend-flat",icon:"—"};
+  const prev=vals[vals.length-2],last=vals[vals.length-1];
+  const diff=last-prev;
+  if(diff<0)return {txt:`Disminución de ${Math.abs(diff)} servicio(s)`,cls:"trend-down",icon:"↓"};
+  if(diff>0)return {txt:`Aumento de ${diff} servicio(s)`,cls:"trend-up",icon:"↑"};
+  return {txt:"Frecuencia estable",cls:"trend-flat",icon:"→"};
+}
+function renderReport(){
+  if(!$("rClient"))return;
+  const services=filteredClientServices(), cid=$("rClient").value;
+  const empty=!cid || !services.length;
+  $("reportEmpty").style.display=empty?"block":"none";
+  $("reportContent").style.display=empty?"none":"block";
+  if(empty)return;
+
+  const pestCounts=countsFrom(services,s=>s.pests||[]);
+  const areaCounts=countsFrom(services,s=>splitAreas(s.areas));
+  const monthData=monthlyCounts(services);
+  const trend=trendLabel(monthData);
+
+  const activityTotals={Bajo:0,Medio:0,Alto:0};
+  const captureByMonth={};
+  const pestActivity={};
+  services.forEach(s=>{
+    (s.activity||[]).forEach(a=>{
+      activityTotals[a.level]=(activityTotals[a.level]||0)+1;
+      pestActivity[a.pest]=pestActivity[a.pest]||[];
+      pestActivity[a.pest].push({date:s.date,level:a.level,count:Number(a.count||0)});
+      const mk=(s.date||"").slice(0,7);
+      if(mk)captureByMonth[mk]=(captureByMonth[mk]||0)+Number(a.count||0);
+    });
+  });
+
+  $("rTotal").textContent=services.length;
+  $("rPestCount").textContent=Object.keys(pestCounts).length;
+  $("rAreaCount").textContent=Object.keys(areaCounts).length;
+  $("rTrend").textContent=trend.icon;
+  $("rTrend").className=trend.cls;
+
+  renderBars("pestBars",pestCounts);
+  renderBars("areaBars",areaCounts);
+  renderBars("activityBars",activityTotals);
+  renderBars("captureBars",Object.fromEntries(Object.entries(captureByMonth).sort((a,b)=>a[0].localeCompare(b[0]))));
+  renderBars("monthBars",monthData);
+
+  const topPest=Object.entries(pestCounts).sort((a,b)=>b[1]-a[1])[0]||["Sin datos",0];
+  const topArea=Object.entries(areaCounts).sort((a,b)=>b[1]-a[1])[0]||["Sin datos",0];
+  const totalPestMentions=Object.values(pestCounts).reduce((a,b)=>a+b,0);
+  const pestRate=services.length? (topPest[1]/services.length):0;
+
+  let assessment="Control estable";
+  let assessmentText="La frecuencia registrada no muestra un incremento evidente en el periodo seleccionado.";
+  if(trend.icon==="↑"){assessment="Revisar incremento";assessmentText="Los servicios aumentaron respecto al periodo anterior. Conviene revisar causas, puntos críticos y medidas preventivas."}
+  if(trend.icon==="↓"){assessment="Evolución favorable";assessmentText="La frecuencia de servicios disminuyó respecto al periodo anterior. Mantener monitoreo y medidas preventivas."}
+
+  const activityEntries=Object.entries(pestActivity);
+  const activitySummary=activityEntries.length?activityEntries.map(([p,arr])=>{
+    const ordered=[...arr].sort((a,b)=>a.date.localeCompare(b.date));
+    const first=ordered[0],last=ordered[ordered.length-1];
+    const scoreDiff=activityScore(last.level)-activityScore(first.level);
+    const countDiff=(last.count||0)-(first.count||0);
+    let t="estable",cls="trend-flat";
+    if(scoreDiff<0 || (scoreDiff===0 && countDiff<0)){t="mejora";cls="trend-down"}
+    if(scoreDiff>0 || (scoreDiff===0 && countDiff>0)){t="aumento";cls="trend-up"}
+    return `<div class="metric-line"><span><b>${esc(p)}</b><br><small>${esc(first.level)} → ${esc(last.level)} · ${first.count||0} → ${last.count||0}</small></span><strong class="${cls}">${t}</strong></div>`;
+  }).join(""):`<div class="note">Aún no hay niveles de actividad registrados en este periodo.</div>`;
+
+  $("periodicAnalysis").innerHTML=`
+    <div class="analysis-grid">
+      <div class="analysis-box"><b>Plaga más frecuente</b><span>${esc(topPest[0])} (${topPest[1]} registro(s))</span></div>
+      <div class="analysis-box"><b>Área más intervenida</b><span>${esc(topArea[0])} (${topArea[1]} intervención(es))</span></div>
+      <div class="analysis-box"><b>Tendencia del control</b><span class="${trend.cls}">${esc(trend.txt)}</span></div>
+      <div class="analysis-box"><b>Evaluación del periodo</b><span>${esc(assessment)}. ${esc(assessmentText)}</span></div>
+    </div>
+    <div style="margin-top:12px">${activitySummary}</div>
+    <p class="note" style="margin-top:12px">El análisis combina frecuencia de servicios, nivel de actividad y cantidades registradas. Sirve como herramienta de seguimiento operativo y no sustituye una evaluación entomológica o epidemiológica profesional cuando ésta sea necesaria.</p>`;
+
+  $("reportHistory").innerHTML=[...services].sort((a,b)=>b.date.localeCompare(a.date)).map(s=>`<div class="item"><div class="avatar">📊</div><div class="meta"><b>${fmt(s.date)} · ${esc(s.type)}</b><small>${esc((s.pests||[]).join(", ")||"Sin plagas registradas")}<br>${esc(s.areas||"Sin área registrada")}<br>${esc((s.activity||[]).map(a=>`${a.pest}: ${a.level}${a.count?` (${a.count})`:""}`).join(" · ")||"Sin nivel de actividad")}</small></div></div>`).join("");
+}
+function printClientReport(){
+  const services=filteredClientServices(); if(!services.length)return alert("No hay datos para generar el reporte.");
+  const d=state(),cid=$("rClient").value,c=d.clients.find(x=>x.id===cid)||{};
+  const pestCounts=countsFrom(services,s=>s.pests||[]),areaCounts=countsFrom(services,s=>splitAreas(s.areas)),monthData=monthlyCounts(services),trend=trendLabel(monthData);
+  const activityTotals={Bajo:0,Medio:0,Alto:0},captureByMonth={};
+  services.forEach(s=>(s.activity||[]).forEach(a=>{activityTotals[a.level]=(activityTotals[a.level]||0)+1;const mk=(s.date||"").slice(0,7);if(mk)captureByMonth[mk]=(captureByMonth[mk]||0)+Number(a.count||0)}));
+  const topPest=Object.entries(pestCounts).sort((a,b)=>b[1]-a[1])[0]||["Sin datos",0],topArea=Object.entries(areaCounts).sort((a,b)=>b[1]-a[1])[0]||["Sin datos",0];
+  const bars=(data)=>{const max=Math.max(1,...Object.values(data));return Object.entries(data).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="barrow"><span>${esc(k)}</span><div class="track"><div class="fill" style="width:${v/max*100}%"></div></div><b>${v}</b></div>`).join("")||"<div style='font-size:9px;color:#777'>Sin datos</div>"};
+  const from=$("rFrom").value||"Inicio",to=$("rTo").value||"Actualidad";
+  const history=services.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(s=>`<tr><td>${fmt(s.date)}</td><td>${esc(s.type)}</td><td>${esc((s.pests||[]).join(", "))}</td><td>${esc(s.areas||"")}</td><td>${esc((s.activity||[]).map(a=>`${a.pest}: ${a.level}${a.count?` (${a.count})`:""}`).join(" | "))}</td></tr>`).join("");
+  const report=`<!doctype html><html><head><meta charset="utf-8"><title>Reporte ROKELUX - ${esc(c.name||"Cliente")}</title><style>${docBaseCss()}</style></head><body><div class="page">
+  ${docHeader("REPORTE DE CONTROL DE PLAGAS","Análisis periódico de actividad, intervenciones y evolución")}
+  <div class="card"><h3>Cliente y periodo analizado</h3><div class="meta-grid"><div><b>Cliente:</b> ${esc(c.name||"")}</div><div><b>RUC/C.I.:</b> ${esc(c.doc||"")}</div><div><b>Dirección:</b> ${esc(c.address||"")}</div><div><b>Periodo:</b> ${esc(from)} a ${esc(to)}</div></div></div>
+  <div class="kpis"><div class="kpi"><b>${services.length}</b><span>Servicios analizados</span></div><div class="kpi"><b>${Object.keys(pestCounts).length}</b><span>Tipos de plagas</span></div><div class="kpi"><b>${Object.keys(areaCounts).length}</b><span>Áreas intervenidas</span></div><div class="kpi"><b>${esc(trend.icon||"—")}</b><span>${esc(trend.txt)}</span></div></div>
+  <div class="section"><h2>Frecuencia de plagas</h2><div class="card">${bars(pestCounts)}</div></div>
+  <div class="section"><h2>Áreas más intervenidas</h2><div class="card">${bars(areaCounts)}</div></div>
+  <div class="section"><h2>Nivel de actividad</h2><div class="card">${bars(activityTotals)}</div></div>
+  <div class="section"><h2>Capturas / incidencias por mes</h2><div class="card">${bars(Object.fromEntries(Object.entries(captureByMonth).sort((a,b)=>a[0].localeCompare(b[0]))))}</div></div>
+  <div class="section"><h2>Evolución periódica</h2><div class="card">${bars(monthData)}</div></div>
+  <div class="card analysis avoid"><h3>Análisis técnico del periodo</h3><div style="font-size:10px;line-height:1.55"><b>Plaga más frecuente:</b> ${esc(topPest[0])} (${topPest[1]} registro(s)).<br><b>Área más intervenida:</b> ${esc(topArea[0])} (${topArea[1]} intervención(es)).<br><b>Tendencia:</b> ${esc(trend.txt)}.<br><br>Este análisis se basa en los servicios registrados en la aplicación durante el periodo seleccionado y debe complementarse con inspección técnica cuando corresponda.</div></div>
+  <div class="section"><h2>Historial del periodo</h2><table><tr><th>Fecha</th><th>Servicio</th><th>Plagas</th><th>Áreas</th><th>Actividad</th></tr>${history}</table></div>
+  <div class="footer"><span>ROKELUX · 099 498 1292 · rokelux@proton.me</span><span>Reporte de control de plagas</span></div>
+  </div><script>window.onload=()=>window.print()<\/script></body></html>`;
+  const w=window.open("","_blank");w.document.write(report);w.document.close();
+}
+function renderAll(){renderHome();renderClients();renderSelects();renderHistory();renderCerts();renderCalendar();renderReportSelect();renderReport();renderBusinessSelects();renderQuotes();renderInvoices();renderServiceReports();renderStationMap();renderClientPortal();renderClientDocs();renderClientQuotes();renderClientInvoices();renderUsers();renderSignatureServiceSelect()}
+document.addEventListener("DOMContentLoaded",()=>{initDemo();ensureDemoUsers();makeChips("inspectionPests",pests,"ip");makeChips("servicePests",pests,"sp");makeChips("products",products,"pr");addQuoteItem();addInvoiceItem();const now=new Date(),t=now.toISOString().slice(0,10),from=new Date(now.getFullYear(),now.getMonth()-5,1).toISOString().slice(0,10);$("iDate").value=t;$("sDate").value=t;if($("qDate"))$("qDate").value=t;if($("fDate"))$("fDate").value=t;if($("rFrom"))$("rFrom").value=from;if($("rTo"))$("rTo").value=t;setupSignaturePad("sigTechCanvas","tech");setupSignaturePad("sigClientCanvas","client");restoreSession();renderAll();if("serviceWorker"in navigator)navigator.serviceWorker.register("service-worker.js").catch(()=>{})});
+</script>
+</body></html>
