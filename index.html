@@ -109,6 +109,7 @@
     .signature-status{font-size:11px;color:#9ca79f;margin-top:6px}
     @media(max-width:620px){.signature-grid{grid-template-columns:1fr}}
 
+.rokel-card{display:flex;gap:14px;align-items:center;background:#101612;border:1px solid #2b422c;border-radius:18px;padding:8px 16px;margin:16px 0}.rokel-card img{object-fit:contain;flex-shrink:0}.rokel-card b{color:var(--green);font-size:13px}.rokel-card p{color:#c4cec6;font-size:12px;line-height:1.6;margin-top:6px}.bait-choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.bait-choices label{padding:10px;border:2px solid #39483d;border-radius:12px;cursor:pointer}.bait-choices label:has(input:checked){border-color:var(--bait);box-shadow:0 0 0 1px var(--bait)}.bait-choices input{accent-color:var(--bait)}.pin-label{position:absolute;top:28px;background:#101612;color:white;padding:2px 5px;border-radius:4px;white-space:nowrap;font-size:9px}.station-pin:focus{z-index:2;outline:2px solid white}dialog::backdrop{background:#000b}[hidden]{display:none!important}
 </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -118,12 +119,26 @@
   <div class="login-card">
     <div class="login-logo">ROKE<span>LUX</span></div>
     <div class="muted">PEST MANAGEMENT & BIOSECURITY</div>
-    <h2>Ingresar a la aplicación</h2>
+    <div id="loginPanel"><h2>Ingresar a la aplicación</h2>
     <p class="note" style="margin:8px 0 16px">Acceso seguro en la nube. Usa el correo y contraseña asignados a tu perfil.</p>
     <div class="field"><label>Correo electrónico</label><input id="loginUser" type="email" placeholder="correo@ejemplo.com" autocomplete="username"></div>
     <div class="field"><label>Contraseña</label><input id="loginPass" type="password" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"></div>
     <button id="loginBtn" class="btn primary" style="width:100%" onclick="login()">Ingresar</button>
-    <div id="loginStatus" class="note" style="margin-top:12px"></div>
+    <button type="button" class="btn ghost" style="width:100%;margin-top:10px" onclick="showAuthPanel('forgot')">¿Olvidaste tu contraseña?</button>
+    <div id="loginStatus" class="note" role="status" style="margin-top:12px"></div></div>
+    <form id="forgotPanel" hidden onsubmit="event.preventDefault();sendPasswordReset()">
+      <h2>Recuperar contraseña</h2><p class="note" style="margin:12px 0">Te enviaremos un enlace para crear una contraseña nueva.</p>
+      <div class="field"><label for="resetEmail">Correo electrónico</label><input id="resetEmail" type="email" autocomplete="email" required></div>
+      <button id="resetBtn" class="btn primary" type="submit">Enviar enlace de recuperación</button>
+      <button type="button" class="btn ghost" onclick="cancelRecovery()">Volver al ingreso</button><p id="resetStatus" class="note" role="status" style="margin-top:12px"></p>
+    </form>
+    <form id="recoveryPanel" hidden onsubmit="event.preventDefault();updatePassword()">
+      <h2>Crear nueva contraseña</h2><p class="note" style="margin:12px 0">Usa al menos 8 caracteres.</p>
+      <div class="field"><label for="newPassword">Nueva contraseña</label><input id="newPassword" type="password" autocomplete="new-password" minlength="8" required></div>
+      <div class="field"><label for="confirmPassword">Confirmar contraseña</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required></div>
+      <button id="updatePasswordBtn" class="btn primary" type="submit">Guardar contraseña</button>
+      <button type="button" class="btn ghost" onclick="cancelRecovery()">Volver al ingreso</button><p id="recoveryStatus" class="note" role="status" style="margin-top:12px"></p>
+    </form>
   </div>
 </div>
 
@@ -136,7 +151,7 @@
         <div class="actions"><button class="btn primary" onclick="go('inspection')">🔎 Nueva inspección</button><button class="btn secondary" onclick="go('service')">🛠 Nuevo servicio</button><button class="btn secondary" onclick="go('clients')">👥 Clientes</button><button class="btn secondary tech-only" onclick="go('certificates')">📄 Certificados</button><button class="btn secondary admin-only" onclick="go('reports')">📊 Reportes</button><button class="btn secondary admin-only" onclick="go('quotes')">💵 Cotizaciones</button><button class="btn secondary admin-only" onclick="go('billing')">🧾 Facturación</button><button class="btn secondary" onclick="go('stations')">📍 Estaciones roedores</button></div>
         <div class="service-icons"><div><div class="ico">🪳</div>Fumigación</div><div><div class="ico">🐀</div>Desratización</div><div><div class="ico">🧼</div>Desinfección</div><div><div class="ico">🦟</div>Vectores</div></div>
       </div>
-      <div class="section-title"><h2>Resumen</h2><span class="muted">Hoy</span></div>
+      <aside class="rokel-card"><img src="rokel.png" alt="ROKEL, asistente de ROKELUX" width="88" height="100"><div><b>ROKEL · Tu asistente</b><p>ROKEL te alerta. ROKEL te enseña. ROKEL protege.</p></div></aside><div class="section-title"><h2>Resumen</h2><span class="muted">Hoy</span></div>
       <div class="grid">
         <div class="card stat"><b id="stClients">0</b><span>Clientes</span></div>
         <div class="card stat"><b id="stServices">0</b><span>Servicios</span></div>
@@ -373,15 +388,22 @@
         <div class="field tech-only"><label>Cargar plano o foto del sitio (opcional)</label><input type="file" id="mBg" accept="image/*" onchange="setMapBackground(event)"></div>
         <p class="note tech-only">Toca un punto del mapa para crear una estación. Luego toca una estación existente para actualizar su estado, fecha de revisión y observaciones.</p>
         <div id="rodentMap" class="map-wrap" onclick="addStationFromMap(event)"></div>
-        <div class="map-legend"><span><i class="dot" style="background:#8cff00"></i>Operativa</span><span><i class="dot" style="background:#ffd45f"></i>Revisar</span><span><i class="dot" style="background:#ff806e"></i>Reemplazar</span></div>
+        <div class="map-legend"><span><i class="dot" style="background:#8cff00"></i>Cebo: Normal</span><span><i class="dot" style="background:#ffd45f"></i>Cebo: Picado</span><span><i class="dot" style="background:#ff5b5b"></i>Cebo: Comido total</span><span><i class="dot" style="background:#aab5ac"></i>Sin registrar</span></div>
         <div class="actions"><button class="btn secondary" onclick="printStationMap()">Imprimir mapa / PDF</button><button class="btn ghost tech-only" onclick="clearStationMap()">Limpiar mapa</button></div>
       </div>
       <div class="section-title"><h2>Estaciones registradas</h2></div>
       <div id="stationList" class="list"></div>
+      <dialog id="stationDialog" class="panel" style="color:var(--text);width:min(520px,95vw);max-height:90vh;overflow:auto">
+        <form onsubmit="event.preventDefault();saveStationReview()"><h3 id="stationTitle">Revisar estación</h3><input id="stationEditId" type="hidden">
+        <div class="field"><label for="stationOperational">Estado de la estación</label><select id="stationOperational"><option>Operativa</option><option>Revisar</option><option>Reemplazar</option></select></div>
+        <fieldset style="border:0;padding:0;margin:12px 0"><legend>Estado del cebo</legend><div id="baitChoices" class="bait-choices"></div></fieldset>
+        <div class="field"><label for="stationNotes">Observaciones</label><textarea id="stationNotes"></textarea></div>
+        <p id="stationSaveStatus" class="note" role="status"></p><div class="actions"><button id="stationSaveBtn" class="btn primary" type="submit">Guardar revisión</button><button class="btn ghost" type="button" onclick="$('stationDialog').close()">Cancelar</button></div></form>
+      </dialog>
     </section>
 
 
-    <section id="clientPortal" class="screen">
+    <section id="clientPortal" class="screen"><aside class="rokel-card"><img src="rokel.png" alt="ROKEL, asistente de ROKELUX" width="88" height="100"><div><b>ROKEL · Tu asistente</b><p>ROKEL te alerta. ROKEL te enseña. ROKEL protege.</p></div></aside>
       <div class="section-title"><h2>Mi cuenta ROKELUX</h2><span class="role-pill role-client">Cliente</span></div>
       <div class="client-hero">
         <div class="hero"><h1>Tu espacio,<br><span>bajo control.</span></h1><p id="clientWelcome">Consulta servicios, documentos y evolución de plagas.</p></div>
@@ -466,8 +488,95 @@ const products=["Biothrine","K-Othrine","Deltaplan","Delta Control","Insectin","
 const $=id=>document.getElementById(id);
 const SUPABASE_URL="https://xrtiwmvvzewlglbmlufm.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_8vYzQJ29K4TmG_Z2ViR1zQ_-GTg8t9F";
+const recoveryHash=new URLSearchParams(location.hash.slice(1));
+let recoveryMode=recoveryHash.get('type')==='recovery'||sessionStorage.getItem('rokelux_recovery')==='1';
+const recoveryLinkError=recoveryHash.has('error')||new URLSearchParams(location.search).has('error');
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 const sbSignup=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{headers:{"x-client-info":"rokelux-admin-signup"}}});
+
+function showAuthPanel(panel){
+  ['login','forgot','recovery'].forEach(p=>$(p+'Panel').hidden=p!==panel);
+  $('loginOverlay').style.display='grid';
+  if(panel==='forgot')$('resetEmail').value=$('loginUser').value.trim();
+}
+function showRecovery(){recoveryMode=true;sessionStorage.setItem('rokelux_recovery','1');showAuthPanel('recovery');}
+sb.auth.onAuthStateChange((event,session)=>{
+  if(event==='PASSWORD_RECOVERY'&&session)showRecovery();
+});
+function authErrorEs(error){
+  const code=error?.code||'',message=String(error?.message||'');
+  if(/rate|too many/i.test(code+' '+message))return 'Demasiados intentos. Espera unos minutos e inténtalo nuevamente.';
+  if(/same_password/.test(code))return 'La nueva contraseña debe ser diferente de la anterior.';
+  if(/weak_password|password/i.test(code))return 'La contraseña no cumple los requisitos de seguridad. Usa una más larga y combina letras, números y símbolos.';
+  if(/session|expired|otp|token/i.test(code+' '+message))return 'El enlace no es válido o ha caducado. Solicita uno nuevo.';
+  return 'No se pudo completar la solicitud. Revisa tu conexión e inténtalo nuevamente.';
+}
+async function sendPasswordReset(){
+  const btn=$('resetBtn'),status=$('resetStatus'),email=$('resetEmail').value.trim();
+  if(!$('resetEmail').reportValidity()||!email)return;
+  btn.disabled=true;status.textContent='Enviando enlace…';
+  try{const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://rokelux-app.vercel.app'});if(error)throw error;status.textContent='Si el correo tiene una cuenta, recibirás un enlace para recuperar tu contraseña. Revisa también la carpeta de spam.';}
+  catch(error){status.textContent=authErrorEs(error);}finally{btn.disabled=false;}
+}
+async function cancelRecovery(){
+  if(recoveryMode){const {error}=await sb.auth.signOut({scope:'local'});if(error){$('recoveryStatus').textContent=authErrorEs(error);return;}}
+  recoveryMode=false;sessionStorage.removeItem('rokelux_recovery');sessionUser=null;cloudReady=false;
+  history.replaceState(null,'',location.pathname);$('newPassword').value='';$('confirmPassword').value='';$('loginPass').value='';showAuthPanel('login');
+}
+async function updatePassword(){
+  const btn=$('updatePasswordBtn'),status=$('recoveryStatus'),password=$('newPassword').value;
+  if(!recoveryMode)return;
+  if(password.length<8){status.textContent='Usa al menos 8 caracteres.';return;}
+  if(password!==$('confirmPassword').value){status.textContent='Las contraseñas no coinciden.';return;}
+  btn.disabled=true;status.textContent='Guardando contraseña…';
+  try{const {data,error:sessionError}=await sb.auth.getSession();if(sessionError||!data.session)throw {code:'session_expired'};
+    const {error}=await sb.auth.updateUser({password});if(error)throw error;
+    await cancelRecovery();if(!recoveryMode)$('loginStatus').textContent='Contraseña actualizada. Ingresa con tu nueva contraseña.';
+  }catch(error){status.textContent=authErrorEs(error);}finally{btn.disabled=false;}
+}
+
+const BAIT_STATES=['Normal','Picado','Comido total'];
+const STATION_NOTES_PREFIX='ROKELUX_STATION_V1\n';
+function validBait(v){return BAIT_STATES.includes(v);}
+function baitLabel(v){return validBait(v)?v:'Sin registrar';}
+function baitColor(v){return ({Normal:'#8cff00',Picado:'#ffd45f','Comido total':'#ff5b5b'})[v]||'#aab5ac';}
+function baitBadge(v){return `<span style="display:inline-block;background:${baitColor(v)};color:#111;border:1px solid #555;border-radius:8px;padding:3px 7px;margin:5px 0;font-size:11px;print-color-adjust:exact">Cebo: ${baitLabel(v)}</span>`;}
+function unpackStationNotes(raw){
+  const text=typeof raw==='string'?raw:'';
+  if(text.startsWith(STATION_NOTES_PREFIX))try{const v=JSON.parse(text.slice(STATION_NOTES_PREFIX.length));
+    if(v.version===1&&typeof v.notes==='string')return {notes:v.notes,baitStatus:validBait(v.baitStatus)?v.baitStatus:null,baitHistory:Array.isArray(v.baitHistory)?v.baitHistory.filter(r=>r&&validBait(r.baitStatus)&&typeof r.date==='string'):[]};
+  }catch(_){}
+  return {notes:text,baitStatus:null,baitHistory:[]};
+}
+function packStationNotes(s){return STATION_NOTES_PREFIX+JSON.stringify({version:1,notes:s.notes||'',baitStatus:validBait(s.baitStatus)?s.baitStatus:null,baitHistory:s.baitHistory||[]});}
+function stationHistoryHtml(s,print=false){
+  const rows=(s.baitHistory||[]).slice().reverse().map(r=>`<div style="margin:6px 0;font-size:11px">${esc(r.date.replace('T',' ').slice(0,16))} UTC · ${baitBadge(r.baitStatus)} · ${esc(r.status||'')}<br>${esc(r.notes||'')}</div>`).join('');
+  return rows?(print?`<div><b>Historial de revisiones</b>${rows}</div>`:`<details><summary>Historial de revisiones (${s.baitHistory.length})</summary>${rows}</details>`):'';
+}
+function editStation(id){
+  if(!canEditTechnical())return;
+  const s=state().stations.find(x=>x.id===id);if(!s)return;
+  $('stationEditId').value=id;$('stationTitle').textContent='Revisar '+s.code;$('stationOperational').value=s.status;$('stationNotes').value=s.notes||'';$('stationSaveStatus').textContent='';
+  $('baitChoices').innerHTML=BAIT_STATES.map(v=>`<label style="--bait:${baitColor(v)}"><input type="radio" name="baitStatus" value="${v}" required ${s.baitStatus===v?'checked':''}> ${v}</label>`).join('');
+  $('stationDialog').showModal();
+}
+async function saveStationReview(){
+  if(!canEditTechnical())return;
+  const selected=document.querySelector('input[name="baitStatus"]:checked');if(!selected)return;
+  const d=state(),s=d.stations.find(x=>x.id===$('stationEditId').value);if(!s)return;
+  const btn=$('stationSaveBtn');btn.disabled=true;$('stationSaveStatus').textContent='Guardando revisión…';
+  const date=new Date().toISOString(),updated={...s,status:$('stationOperational').value,notes:$('stationNotes').value,baitStatus:selected.value,lastCheck:date.slice(0,10)};
+  updated.baitHistory=[...(s.baitHistory||[]),{date,baitStatus:updated.baitStatus,status:updated.status,notes:updated.notes}];
+  try{
+    // Flush pending writes before persisting this review so an older snapshot cannot overwrite it.
+    clearTimeout(cloudSyncTimer);
+    while(cloudSyncBusy)await new Promise(resolve=>setTimeout(resolve,50));
+    const {error}=await sb.from('stations').upsert(stationToDb(updated),{onConflict:'id'});if(error)throw error;
+    const latest=state(),index=latest.stations.findIndex(x=>x.id===updated.id);if(index<0)throw Error('station_missing');latest.stations[index]=updated;
+    save(latest);$('stationDialog').close();
+  }catch(error){$('stationSaveStatus').textContent='No se pudo guardar en la nube. Revisa tu conexión y permisos e inténtalo nuevamente.';}
+  finally{btn.disabled=false;}
+}
 
 const state=()=>{
   const d=JSON.parse(localStorage.getItem("rokelux_data")||'{}');
@@ -485,8 +594,8 @@ function quoteToDb(q){return {id:q.id,client_id:q.clientId,number:q.number,quote
 function quoteFromDb(q){return {id:q.id,clientId:q.client_id,number:q.number,date:q.quote_date,validity:q.validity_days,notes:q.notes||"",items:q.items||[],subtotal:Number(q.subtotal||0),total:Number(q.total||0),status:q.status||"Pendiente",clientDecisionAt:q.client_decision_at||""}}
 function invoiceToDb(f){return {id:f.id,client_id:f.clientId,number:f.number,invoice_date:f.date,items:f.items||[],subtotal:Number(f.subtotal||0),vat_rate:Number(f.vatRate||0),vat:Number(f.vat||0),total:Number(f.total||0),status:f.status||"Borrador",access_key:f.accessKey||null}}
 function invoiceFromDb(f){return {id:f.id,clientId:f.client_id,number:f.number,date:f.invoice_date,items:f.items||[],subtotal:Number(f.subtotal||0),vatRate:Number(f.vat_rate||0),vat:Number(f.vat||0),total:Number(f.total||0),status:f.status||"Borrador",accessKey:f.access_key||""}}
-function stationToDb(x){return {id:x.id,client_id:x.clientId,code:x.code,x:Number(x.x||0),y:Number(x.y||0),status:x.status||"Operativa",last_check:x.lastCheck||null,notes:x.notes||null}}
-function stationFromDb(x){return {id:x.id,clientId:x.client_id,code:x.code,x:Number(x.x||0),y:Number(x.y||0),status:x.status||"Operativa",lastCheck:x.last_check||"",notes:x.notes||""}}
+function stationToDb(x){return {id:x.id,client_id:x.clientId,code:x.code,x:Number(x.x||0),y:Number(x.y||0),status:x.status||"Operativa",last_check:x.lastCheck||null,notes:packStationNotes(x)}}
+function stationFromDb(x){return {id:x.id,clientId:x.client_id,code:x.code,x:Number(x.x||0),y:Number(x.y||0),status:x.status||"Operativa",lastCheck:x.last_check||"",...unpackStationNotes(x.notes)}}
 function mapToDb(x){return {id:x.id,client_id:x.clientId,site:x.site||null,background_url:x.background||null}}
 function mapFromDb(x){return {id:x.id,clientId:x.client_id,site:x.site||"",background:x.background_url||""}}
 function requestToDb(x){return {id:x.id,client_id:x.clientId,user_id:x.userId||null,request_type:x.type||null,message:x.message,photo_url:x.photo||null,status:x.status||"Nueva",created_at:x.date||undefined}}
@@ -530,6 +639,7 @@ async function fetchMyProfile(authUser){
   return {id:data.user_id,name:data.full_name||authUser.email,username:authUser.email||'',role:data.role,clientId:data.client_id||null,active:true};
 }
 async function login(){
+  if(recoveryMode)return showRecovery();
   const email=$('loginUser').value.trim(),password=$('loginPass').value,btn=$('loginBtn'),status=$('loginStatus');if(!email||!password)return alert('Ingresa correo y contraseña.');
   btn.disabled=true;status.textContent='Verificando acceso…';
   try{const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;sessionUser=await fetchMyProfile(data.user);status.textContent='Cargando información…';await loadCloudState();$('loginOverlay').style.display='none';applyRole();renderAll();}
@@ -537,7 +647,10 @@ async function login(){
   finally{btn.disabled=false}
 }
 async function restoreSession(){
-  const {data}=await sb.auth.getSession();if(!data.session)return;
+  const {data,error}=await sb.auth.getSession();
+  if(recoveryLinkError){recoveryMode=false;sessionStorage.removeItem('rokelux_recovery');showAuthPanel('forgot');$('resetStatus').textContent='El enlace no es válido o ha caducado. Solicita uno nuevo.';return;}
+  if(recoveryMode){showRecovery();if(error||!data.session){$('recoveryStatus').textContent='El enlace no es válido o ha caducado. Solicita uno nuevo.';$('updatePasswordBtn').disabled=true;}return;}
+  if(!data.session)return;
   try{sessionUser=await fetchMyProfile(data.session.user);await loadCloudState();$('loginOverlay').style.display='none';applyRole();renderAll()}catch(e){await sb.auth.signOut();sessionUser=null}
 }
 async function logout(){sessionUser=null;cloudReady=false;await sb.auth.signOut();$('loginOverlay').style.display='grid';$('loginPass').value='';$('loginStatus').textContent='';window.scrollTo(0,0)}
@@ -1015,13 +1128,13 @@ function setMapBackground(e){
   const r=new FileReader();r.onload=()=>{const d=state(),cid=$("mClient").value;let m=d.stationMaps.find(x=>x.clientId===cid);if(!m){m={id:crypto.randomUUID(),clientId:cid,site:"",background:""};d.stationMaps.push(m)}m.background=r.result;save(d);renderStationMap()};r.readAsDataURL(file)
 }
 function renderStationMap(){
-  const d=state(),cid=$("mClient")?.value,map=$("rodentMap"),list=$("stationList");if(!map||!list)return;
+  const d=state(),cid=isClient()?currentClientId():$("mClient")?.value,map=$("rodentMap"),list=$("stationList");if(!map||!list)return;
   if(!cid){map.innerHTML="";list.innerHTML='<div class="empty">Selecciona un cliente.</div>';return}
   const meta=d.stationMaps.find(x=>x.clientId===cid)||{site:"",background:""};$("mSite").value=meta.site||"";
   if(meta.background){map.classList.add("has-bg");map.style.backgroundImage=`url("${meta.background}")`}else{map.classList.remove("has-bg");map.style.backgroundImage=""}
   const sts=d.stations.filter(x=>x.clientId===cid);
-  map.innerHTML=sts.map(s=>`<button class="station-pin ${s.status==="Revisar"?"attention":s.status==="Reemplazar"?"replace":""}" style="left:${s.x}%;top:${s.y}%" onclick="event.stopPropagation();editStation('${s.id}')" title="${esc(s.code)} · ${esc(s.status)}">${esc(s.code)}</button>`).join("");
-  list.innerHTML=sts.length?sts.sort((a,b)=>a.code.localeCompare(b.code)).map(s=>`<div class="item"><div class="avatar">📍</div><div class="meta"><b>${esc(s.code)} · ${esc(s.status)}</b><small>Última revisión: ${fmt(s.lastCheck)||"—"}<br>${esc(s.notes||"")}</small></div><button class="btn ghost" onclick="editStation('${s.id}')">Editar</button></div>`).join(""):`<div class="empty">Toca el mapa para agregar la primera estación.</div>`;
+  map.innerHTML=sts.map(s=>`<button class="station-pin ${s.status==="Revisar"?"attention":s.status==="Reemplazar"?"replace":""}" style="left:${s.x}%;top:${s.y}%;background:${baitColor(s.baitStatus)}" onclick="event.stopPropagation();editStation('${s.id}')" title="${esc(s.code)} · ${esc(s.status)} · Cebo: ${baitLabel(s.baitStatus)}" aria-label="${esc(s.code)} · Cebo: ${baitLabel(s.baitStatus)}">${esc(s.code)}<span class="pin-label">${baitLabel(s.baitStatus)}</span></button>`).join("");
+  list.innerHTML=sts.length?sts.sort((a,b)=>a.code.localeCompare(b.code)).map(s=>`<div class="item"><div class="avatar">📍</div><div class="meta"><b>${esc(s.code)} · ${esc(s.status)}</b>${baitBadge(s.baitStatus)}<small>Última revisión: ${fmt(s.lastCheck)||"—"}<br>${esc(s.notes||"")}</small>${stationHistoryHtml(s)}</div>${canEditTechnical()?`<button class="btn ghost" onclick="editStation('${s.id}')">Revisar</button>`:""}</div>`).join(""):`<div class="empty">Toca el mapa para agregar la primera estación.</div>`;
 }
 function addStationFromMap(e){if(!canEditTechnical())return alert("El cliente puede consultar el mapa, pero no editar estaciones.");
   const cid=$("mClient").value;if(!cid)return alert("Selecciona un cliente.");
@@ -1030,22 +1143,16 @@ function addStationFromMap(e){if(!canEditTechnical())return alert("El cliente pu
   const d=state(),num=d.stations.filter(s=>s.clientId===cid).length+1;
   const code=prompt("Código de estación:",`E${String(num).padStart(2,"0")}`);if(!code)return;
   d.stations.push({id:crypto.randomUUID(),clientId:cid,code,x,y,status:"Operativa",lastCheck:new Date().toISOString().slice(0,10),notes:""});
-  save(d);renderStationMap()
-}
-function editStation(id){if(!canEditTechnical())return alert("El cliente puede consultar el mapa, pero no editar estaciones.");
-  const d=state(),s=d.stations.find(x=>x.id===id);if(!s)return;
-  const status=prompt("Estado: Operativa / Revisar / Reemplazar",s.status);if(status===null)return;
-  const notes=prompt("Observaciones:",s.notes||"");if(notes===null)return;
-  s.status=["Operativa","Revisar","Reemplazar"].includes(status)?status:"Operativa";s.notes=notes;s.lastCheck=new Date().toISOString().slice(0,10);save(d);renderStationMap()
+  save(d);renderStationMap();editStation(d.stations[d.stations.length-1].id)
 }
 function clearStationMap(){if(!canEditTechnical())return alert("Tu perfil no puede borrar estaciones.");
   const cid=$("mClient").value;if(!cid||!confirm("¿Eliminar todas las estaciones de este cliente?"))return;
   const d=state();d.stations=d.stations.filter(s=>s.clientId!==cid);save(d);renderStationMap()
 }
 function printStationMap(){
-  const d=state(),cid=$("mClient").value;if(!cid)return alert("Selecciona un cliente.");const cl=d.clients.find(x=>x.id===cid)||{},meta=d.stationMaps.find(x=>x.clientId===cid)||{},sts=d.stations.filter(x=>x.clientId===cid);
-  const pins=sts.map(s=>`<div class="pin ${s.status==="Revisar"?"a":s.status==="Reemplazar"?"r":""}" style="left:${s.x}%;top:${s.y}%">${esc(s.code)}</div>`).join("");
-  const rows=sts.map(s=>`<tr><td>${esc(s.code)}</td><td>${esc(s.status)}</td><td>${fmt(s.lastCheck)}</td><td>${esc(s.notes||"")}</td></tr>`).join("");
+  const d=state(),cid=isClient()?currentClientId():$("mClient").value;if(!cid)return alert("Selecciona un cliente.");const cl=d.clients.find(x=>x.id===cid)||{},meta=d.stationMaps.find(x=>x.clientId===cid)||{},sts=d.stations.filter(x=>x.clientId===cid);
+  const pins=sts.map(s=>`<div class="pin ${s.status==="Revisar"?"a":s.status==="Reemplazar"?"r":""}" style="left:${s.x}%;top:${s.y}%;background:${baitColor(s.baitStatus)}">${esc(s.code)}<span style="position:absolute;top:25px;white-space:nowrap;background:white;padding:2px">${baitLabel(s.baitStatus)}</span></div>`).join("");
+  const rows=sts.map(s=>`<tr><td>${esc(s.code)}</td><td>${esc(s.status)}<br>${baitBadge(s.baitStatus)}</td><td>${fmt(s.lastCheck)}</td><td>${esc(s.notes||"")} ${stationHistoryHtml(s,true)}</td></tr>`).join("");
   const extra=`@page{size:A4 landscape;margin:0}.page{width:297mm;min-height:210mm;padding:10mm 12mm 16mm}.hero img{width:46mm}.mapdoc{position:relative;width:100%;height:100mm;border:1px solid #bfc8bf;border-radius:14px;overflow:hidden;background:${meta.background?`url('${meta.background}') center/cover no-repeat`:"#f4f6f4"}}.pin{position:absolute;transform:translate(-50%,-50%);width:25px;height:25px;border-radius:50%;background:#7bdd00;border:2px solid #111;display:grid;place-items:center;font-size:8px;font-weight:bold}.pin.a{background:#ffd45f}.pin.r{background:#ff806e}.footer{left:12mm;right:12mm}`;
   const h=`<!doctype html><html><head><meta charset="utf-8"><title>Mapa estaciones ${esc(cl.name||"")}</title><style>${docBaseCss(extra)}</style></head><body><div class="page">
   ${docHeader("MAPA DE ESTACIONES DE CONTROL DE ROEDORES",`${esc(cl.name||"")} · ${esc(meta.site||cl.address||"")}`)}
