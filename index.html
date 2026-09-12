@@ -173,6 +173,9 @@
         <div class="cols"><div class="field"><label>RUC / C.I.</label><input id="cId"></div><div class="field"><label>Teléfono</label><input id="cPhone"></div></div>
         <div class="field"><label>Dirección</label><input id="cAddress"></div>
         <div class="field"><label>Correo</label><input id="cEmail" type="email"></div>
+        <div class="field"><label for="cGps">Ubicación GPS (opcional)</label><input id="cGps" placeholder="Ejemplo: -0.180653, -78.467834"><small>Pega latitud, longitud o captura la ubicación cuando estés en el establecimiento.</small></div>
+        <button type="button" class="btn secondary" onclick="captureClientGps()">Usar mi ubicación</button>
+        <p id="cGpsMessage" role="status" aria-live="polite"></p>
         <div class="actions">
           <button class="btn primary" onclick="saveClient()">Guardar</button>
           <button class="btn ghost" onclick="closeClientForm()">Cancelar</button>
@@ -605,7 +608,7 @@ async function qTable(table){const {data,error}=await sb.from(table).select('*')
 async function loadCloudState(){
   const [clients,inspections,services,quotes,invoices,stations,maps,requests,profiles]=await Promise.all([qTable('clients'),qTable('inspections'),qTable('services'),qTable('quotes'),qTable('invoices'),qTable('stations'),qTable('station_maps'),qTable('requests'),qTable('profiles')]);
   const d={
-    clients:clients.map(c=>({id:c.id,name:c.name,doc:c.doc||"",phone:c.phone||"",address:c.address||"",email:c.email||"",active:c.active!==false})),
+    clients:clients.map(c=>({id:c.id,name:c.name,doc:c.doc||"",phone:c.phone||"",address:c.address||"",email:c.email||"",latitude:c.latitude??null,longitude:c.longitude??null,active:c.active!==false})),
     inspections:inspections.map(inspectionFromDb),services:services.map(serviceFromDb),quotes:quotes.map(quoteFromDb),invoices:invoices.map(invoiceFromDb),stations:stations.map(stationFromDb),stationMaps:maps.map(mapFromDb),requests:requests.map(requestFromDb),
     users:profiles.map(p=>({id:p.user_id,name:p.full_name||"Usuario",username:p.email||"",role:p.role,clientId:p.client_id||null,active:p.active!==false}))
   };
@@ -619,7 +622,7 @@ async function syncCloudState(d){
   if(cloudSyncBusy||!sessionUser)return;cloudSyncBusy=true;
   try{
     const admin=isAdmin(),tech=isTech();
-    if(admin)await syncCollection('clients',d.clients.map(c=>({id:c.id,name:c.name,doc:c.doc||null,phone:c.phone||null,address:c.address||null,email:c.email||null,active:c.active!==false})),true);
+    if(admin)await syncCollection('clients',d.clients.map(c=>({id:c.id,name:c.name,doc:c.doc||null,phone:c.phone||null,address:c.address||null,email:c.email||null,latitude:c.latitude??null,longitude:c.longitude??null,active:c.active!==false})),true);
     if(admin||tech){await syncCollection('inspections',d.inspections.map(inspectionToDb),admin);await syncCollection('services',d.services.map(serviceToDb),admin);await syncCollection('stations',d.stations.map(stationToDb),admin);await syncCollection('station_maps',d.stationMaps.map(mapToDb),admin)}
     if(admin){await syncCollection('quotes',d.quotes.map(quoteToDb),true);await syncCollection('invoices',d.invoices.map(invoiceToDb),true)}
     if(isClient())await syncCollection('requests',d.requests.map(requestToDb),false);
@@ -722,30 +725,63 @@ function go(id){
   window.scrollTo({top:0,behavior:"smooth"});renderAll()
 }
 
+function parseClientGps(value){
+  if(!value.trim())return null;
+  const parts=value.trim().split(',').map(x=>x.trim());
+  if(parts.length!==2||parts.some(x=>!/^[-+]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(x)))throw Error('Escribe latitud y longitud separadas por una coma.');
+  const [lat,lng]=parts.map(Number);
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)throw Error('La latitud debe estar entre -90 y 90 y la longitud entre -180 y 180.');
+  return {lat,lng};
+}
+let clientGpsRequest=0;
+function captureClientGps(){
+  if(!isAdmin())return;
+  if(!navigator.geolocation){$('cGpsMessage').textContent='Tu navegador no permite obtener la ubicación. Puedes pegar las coordenadas.';return;}
+  const request=++clientGpsRequest,editId=$('cEditId').value;
+  $('cGpsMessage').textContent='Buscando ubicación…';
+  const current=()=>request===clientGpsRequest&&$('clientForm').style.display!=='none'&&$('cEditId').value===editId;
+  navigator.geolocation.getCurrentPosition(pos=>{
+    if(!current())return;
+    $('cGps').value=pos.coords.latitude.toFixed(6)+', '+pos.coords.longitude.toFixed(6);
+    $('cGpsMessage').textContent='Ubicación capturada. Precisión aproximada: '+Math.round(pos.coords.accuracy)+' metros. Pulsa Guardar para conservarla.';
+  },error=>{
+    if(current())$('cGpsMessage').textContent=error.code===1?'Permiso de ubicación denegado. Puedes pegar las coordenadas manualmente.':'No se pudo obtener la ubicación. Intenta otra vez o pega las coordenadas.';
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+}
+function clientMapsLink(c){
+  if(c.latitude==null||c.longitude==null)return '';
+  try{
+    const gps=parseClientGps(c.latitude+', '+c.longitude),coordinates=encodeURIComponent(gps.lat+','+gps.lng);
+    return '<div class="actions" style="margin-top:8px;flex-wrap:wrap"><a class="btn ghost" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query='+coordinates+'">Google Maps</a><a class="btn ghost" target="_blank" rel="noopener noreferrer" href="https://waze.com/ul?ll='+coordinates+'&amp;navigate=yes&amp;utm_source=rokelux">Waze</a></div>';
+  }catch{return '';}
+}
 function closeClientForm(){
+  clientGpsRequest++;
   $("clientForm").style.display="none";$("cEditId").value="";
 }
 function openNewClient(){
   if(!isAdmin())return alert("Solo el perfil administrativo puede crear clientes.");
-  ["cName","cId","cAddress","cPhone","cEmail","cEditId"].forEach(id=>$(id).value="");
-  $("clientFormTitle").textContent="Nuevo cliente";$("clientForm").style.display="block";
+  ["cName","cId","cAddress","cPhone","cEmail","cEditId","cGps"].forEach(id=>$(id).value="");
+  clientGpsRequest++;$("cGpsMessage").textContent="";$("clientFormTitle").textContent="Nuevo cliente";$("clientForm").style.display="block";
 }
 function toggleClientForm(){if(isAdmin())openNewClient()}
 function editClient(id){
   if(!isAdmin())return alert("Solo el perfil administrativo puede modificar clientes.");
   const c=state().clients.find(x=>x.id===id);if(!c)return;
   $("cEditId").value=c.id;$("cName").value=c.name||"";$("cId").value=c.doc||"";$("cAddress").value=c.address||"";$("cPhone").value=c.phone||"";$("cEmail").value=c.email||"";
-  $("clientFormTitle").textContent="Modificar cliente";$("clientForm").style.display="block";window.scrollTo({top:0,behavior:"smooth"});
+  clientGpsRequest++;$("cGpsMessage").textContent="";$("cGps").value=c.latitude!=null&&c.longitude!=null?c.latitude+", "+c.longitude:"";$("clientFormTitle").textContent="Modificar cliente";$("clientForm").style.display="block";window.scrollTo({top:0,behavior:"smooth"});
 }
 function saveClient(){
   if(!isAdmin())return alert("Solo el perfil administrativo puede crear o modificar clientes.");
   const d=state(),name=$("cName").value.trim(),editId=$("cEditId").value;
   if(!name)return alert("Escribe el nombre del cliente.");
+  let gps;try{gps=parseClientGps($("cGps").value);}catch(e){return alert(e.message)}
+  const location={latitude:gps?.lat??null,longitude:gps?.lng??null};
   if(editId){
     const c=d.clients.find(x=>x.id===editId);if(!c)return;
-    Object.assign(c,{name,doc:$("cId").value,address:$("cAddress").value,phone:$("cPhone").value,email:$("cEmail").value});
+    Object.assign(c,{...location,name,doc:$("cId").value,address:$("cAddress").value,phone:$("cPhone").value,email:$("cEmail").value});
   }else{
-    d.clients.push({id:crypto.randomUUID(),name,doc:$("cId").value,address:$("cAddress").value,phone:$("cPhone").value,email:$("cEmail").value,active:true});
+    d.clients.push({...location,id:crypto.randomUUID(),name,doc:$("cId").value,address:$("cAddress").value,phone:$("cPhone").value,email:$("cEmail").value,active:true});
   }
   save(d);closeClientForm();renderAll();
 }
@@ -781,6 +817,7 @@ function renderClients(){
       <div class="meta" style="flex:1">
         <b>${esc(c.name)}</b>
         <small>${esc(c.doc||"Sin RUC/C.I.")}<br>${esc(c.address||"Sin dirección")} · <b>${active?"Activo":"Suspendido"}</b></small>
+        ${clientMapsLink(c)}
         ${isAdmin()?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
           <button class="btn primary" onclick="setClientStatus('${c.id}',true)" ${active?'disabled style="opacity:.45"':''}>Activar</button>
           <button class="btn secondary" onclick="editClient('${c.id}')">Modificar</button>
