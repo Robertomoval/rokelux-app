@@ -252,6 +252,8 @@
         </div>
       </div>
       <div class="panel">
+        <div class="field"><label for="existingPhotos">Agregar fotos al servicio existente (JPG, PNG o WebP)</label><input id="existingPhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple></div>
+        <button class="btn ghost" onclick="addExistingServicePhotos()">Guardar fotos sin cambiar firmas</button>
         <p class="note">Al guardar, las firmas quedan asociadas a este servicio y aparecerán automáticamente en el certificado. El técnico puede recoger ambas firmas desde el mismo celular o tablet.</p>
         <div class="actions">
           <button class="btn primary" onclick="saveCertificateSignatures()">Guardar firmas</button>
@@ -590,7 +592,7 @@ const save=d=>{localStorage.setItem("rokelux_data",JSON.stringify(d));renderAll(
 
 const clean=o=>Object.fromEntries(Object.entries(o).filter(([,v])=>v!==undefined));
 function serviceToDb(s){return clean({id:s.id,client_id:s.clientId,service_date:s.date,service_type:s.type,areas:s.areas,pests:s.pests||[],products:s.products||[],other_product:s.otherProduct||null,notes:s.notes||null,photos:s.photos||[],activity:s.activity||[],technician_name:s.technicianName||null,technician_signature:s.technicianSignature||null,received_by:s.receivedBy||null,received_by_role:s.receivedByRole||null,client_signature:s.clientSignature||null,certificate_signed_at:s.certificateSignedAt||null,created_by:s.createdBy||null})}
-function serviceFromDb(s){return {id:s.id,clientId:s.client_id,date:s.service_date,type:s.service_type||"",areas:s.areas||"",pests:s.pests||[],products:s.products||[],otherProduct:s.other_product||"",notes:s.notes||"",photos:s.photos||[],activity:s.activity||[],technicianName:s.technician_name||"",technicianSignature:s.technician_signature||"",receivedBy:s.received_by||"",receivedByRole:s.received_by_role||"",clientSignature:s.client_signature||"",certificateSignedAt:s.certificate_signed_at||""}}
+function serviceFromDb(s){return {id:s.id,clientId:s.client_id,date:s.service_date,type:s.service_type||"",areas:s.areas||"",pests:s.pests||[],products:s.products||[],otherProduct:s.other_product||"",notes:s.notes||"",photos:s.photos||[],activity:s.activity||[],technicianName:s.technician_name||"",technicianSignature:s.technician_signature||"",receivedBy:s.received_by||"",receivedByRole:s.received_by_role||"",clientSignature:s.client_signature||"",certificateSignedAt:s.certificate_signed_at||"",createdBy:s.created_by||null}}
 function inspectionToDb(x){return {id:x.id,client_id:x.clientId,inspection_date:x.date,address:x.address||null,installation_type:x.type||null,contact:x.contact||null,notes:x.notes||null,pests:x.pests||[],created_by:x.createdBy||null}}
 function inspectionFromDb(x){return {id:x.id,clientId:x.client_id,date:x.inspection_date,address:x.address||"",type:x.installation_type||"",contact:x.contact||"",notes:x.notes||"",pests:x.pests||[]}}
 function quoteToDb(q){return {id:q.id,client_id:q.clientId,number:q.number,quote_date:q.date,validity_days:q.validity||15,notes:q.notes||null,items:q.items||[],subtotal:Number(q.subtotal||q.total||0),total:Number(q.total||0),status:q.status||"Pendiente",client_decision_at:q.clientDecisionAt||null}}
@@ -623,7 +625,7 @@ async function syncCloudState(d){
   try{
     const admin=isAdmin(),tech=isTech();
     if(admin)await syncCollection('clients',d.clients.map(c=>({id:c.id,name:c.name,doc:c.doc||null,phone:c.phone||null,address:c.address||null,email:c.email||null,latitude:c.latitude??null,longitude:c.longitude??null,active:c.active!==false})),true);
-    if(admin||tech){await syncCollection('inspections',d.inspections.map(inspectionToDb),admin);await syncCollection('services',d.services.map(serviceToDb),admin);await syncCollection('stations',d.stations.map(stationToDb),admin);await syncCollection('station_maps',d.stationMaps.map(mapToDb),admin)}
+    if(admin||tech){await syncCollection('inspections',d.inspections.map(inspectionToDb),admin);await syncCollection('stations',d.stations.map(stationToDb),admin);await syncCollection('station_maps',d.stationMaps.map(mapToDb),admin)}
     if(admin){await syncCollection('quotes',d.quotes.map(quoteToDb),true);await syncCollection('invoices',d.invoices.map(invoiceToDb),true)}
     if(isClient())await syncCollection('requests',d.requests.map(requestToDb),false);
   }finally{cloudSyncBusy=false}
@@ -704,7 +706,7 @@ function renderRoleNav(){
 function allowedScreen(id){
   if(!sessionUser)return false;
   if(isAdmin())return true;
-  if(isTech())return ["home","clients","inspection","service","history","stations","certificates","certificateSign","settings"].includes(id);
+  if(isTech())return ["home","clients","inspection","service","history","stations","certificates","certificateSign","serviceReports","settings"].includes(id);
   const ok=["clientPortal","history","reports","clientDocs","clientQuotes","stations"];
   return ok.includes(id);
 }
@@ -868,8 +870,64 @@ function activityScore(level){return level==="Alto"?3:level==="Medio"?2:1}
 
 function saveInspection(){if(!canEditTechnical())return alert("Tu perfil no puede registrar inspecciones.");const d=state();if(!$("iClient").value)return alert("Selecciona un cliente.");d.inspections.push({id:crypto.randomUUID(),clientId:$("iClient").value,address:$("iAddress").value,date:$("iDate").value,type:$("iType").value,contact:$("iContact").value,notes:$("iNotes").value,pests:selected("ip")});save(d);alert("Inspección guardada.");go("home")}
 let currentPhotos=[];
-function previewPhotos(e){currentPhotos=[];$("photoGrid").innerHTML="";[...e.target.files].slice(0,4).forEach(file=>{const r=new FileReader();r.onload=()=>{currentPhotos.push(r.result);$("photoGrid").innerHTML=currentPhotos.map(src=>`<div class="photo"><img src="${src}"></div>`).join("")};r.readAsDataURL(file)})}
-function saveService(){if(!canEditTechnical())return alert("Tu perfil no puede registrar servicios.");const d=state();if(!$("sClient").value)return alert("Selecciona un cliente.");d.services.push({id:crypto.randomUUID(),clientId:$("sClient").value,date:$("sDate").value||new Date().toISOString().slice(0,10),type:$("sType").value,areas:$("sAreas").value,pests:selected("sp"),products:selected("pr"),otherProduct:$("sOtherProduct").value,notes:$("sNotes").value,photos:currentPhotos,activity:getActivityData()});currentPhotos=[];save(d);alert("Servicio guardado. Ya puedes generar su certificado.");go("certificates")}
+let photoLoad=Promise.resolve(),photoLoadError=null,photoLoadVersion=0;
+async function readServicePhotos(files){
+  if(files.length>4)throw Error('Selecciona hasta 4 fotos por carga.');
+  return Promise.all(files.map(file=>new Promise((resolve,reject)=>{
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type))return reject(Error('Usa fotos JPG, PNG o WebP. Convierte HEIC antes de adjuntarlas.'));
+    const reader=new FileReader();reader.onerror=()=>reject(Error('No se pudo leer '+file.name));
+    reader.onload=()=>{const image=new Image();image.onerror=()=>reject(Error('No se pudo abrir '+file.name));image.onload=()=>{
+      const factor=Math.min(1,1600/Math.max(image.width,image.height)),canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(image.width*factor));canvas.height=Math.max(1,Math.round(image.height*factor));
+      const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.82));
+    };image.src=reader.result;};reader.readAsDataURL(file);
+  })));
+}
+function previewPhotos(e){
+  const version=++photoLoadVersion;currentPhotos=[];photoLoadError=null;$('photoGrid').textContent='Cargando fotografías…';
+  photoLoad=readServicePhotos([...e.target.files]).then(photos=>{if(version!==photoLoadVersion)return;currentPhotos=photos;$('photoGrid').innerHTML=photos.map(src=>'<div class="photo"><img src="'+src+'"></div>').join('');}).catch(error=>{if(version!==photoLoadVersion)return;photoLoadError=error;$('photoGrid').textContent=error.message;});
+}
+async function addExistingServicePhotos(){
+  if(!canEditTechnical()||serviceWriteBusy)return;
+  const id=$('sigService').value,files=[...$('existingPhotos').files];
+  if(!id||!files.length)return alert('Selecciona el servicio y las fotos.');
+  serviceWriteBusy=true;
+  try{
+    const additions=await readServicePhotos(files);
+    const {data:old,error:readError}=await sb.from('services').select('*').eq('id',id).single();if(readError)throw readError;
+    const original=Array.isArray(old.photos)?old.photos:[];
+    const photos=[...new Set([...original,...additions])];
+    const {data,error}=await sb.from('services').update({photos}).eq('id',id).select('*').single();if(error)throw error;
+    cacheConfirmedService(data);$('existingPhotos').value='';alert('Fotos guardadas en el mismo servicio. Las firmas se conservaron.');
+  }catch(e){alert('No se pudieron guardar las fotos: '+e.message);}finally{serviceWriteBusy=false;}
+}
+let serviceWriteBusy=false,servicePendingId=null,servicePendingOwner=null;
+function cacheConfirmedService(row){
+  const d=state(),service=serviceFromDb(row),index=d.services.findIndex(x=>x.id===service.id);
+  if(index<0)d.services.push(service);else d.services[index]=service;
+  localStorage.setItem('rokelux_data',JSON.stringify(d));renderAll();
+}
+async function saveService(){
+  if(!canEditTechnical())return alert('Tu perfil no puede registrar servicios.');
+  if(serviceWriteBusy)return;
+  await photoLoad;
+  if(serviceWriteBusy)return;
+  if(photoLoadError)return alert(photoLoadError.message);
+  if(!$('sClient').value)return alert('Selecciona un cliente.');
+  if(!navigator.onLine)return alert('Necesitas conexión para guardar el servicio en la nube. Conserva este formulario abierto.');
+  if(!servicePendingId||servicePendingOwner!==sessionUser.id){servicePendingId=crypto.randomUUID();servicePendingOwner=sessionUser.id;}
+  const service={id:servicePendingId,clientId:$('sClient').value,date:$('sDate').value||new Date().toISOString().slice(0,10),type:$('sType').value,areas:$('sAreas').value,pests:selected('sp'),products:selected('pr'),otherProduct:$('sOtherProduct').value,notes:$('sNotes').value,photos:[...currentPhotos],activity:getActivityData(),createdBy:sessionUser.id,technicianName:sessionUser.name};
+  serviceWriteBusy=true;
+  try{
+    let {data,error}=await sb.from('services').insert(serviceToDb(service)).select('*').single();
+    if(error?.code==='23505')({data,error}=await sb.from('services').select('*').eq('id',service.id).single());
+    if(error)throw error;
+    cacheConfirmedService(data);currentPhotos=[];servicePendingId=null;$('sClient').value='';$('photoGrid').innerHTML='';
+    alert('Servicio confirmado en la nube. Ahora registra las firmas del técnico y de quien recibe.');
+    openCertificateSign(data.id);
+  }catch(e){alert('No se pudo confirmar el guardado: '+e.message+'. Conserva los datos y revisa la conexión o los permisos.');}
+  finally{serviceWriteBusy=false;}
+}
 function clientName(id){const c=state().clients.find(x=>x.id===id);return c?c.name:"Cliente"}
 function renderHistory(){const d=state(),svc=isClient()?d.services.filter(s=>s.clientId===currentClientId()):d.services;$("historyList").innerHTML=svc.length?[...svc].reverse().map(s=>`<div class="item"><div class="avatar">🛡️</div><div class="meta"><b>${esc(clientName(s.clientId))}</b><small>${esc(s.type)} · ${fmt(s.date)}</small></div><span class="tag">Completado</span></div>`).join(""):`<div class="empty">Aún no hay servicios registrados.</div>`}
 function renderCerts(){
@@ -910,20 +968,29 @@ function loadCertificateSignatures(){
   $("sigServiceInfo").innerHTML=`<b>${esc(clientName(s.clientId))}</b><br>${fmt(s.date)} · ${esc(s.type)}<br>${esc(s.areas||"")}`;
   drawSavedSignature("tech",s.technicianSignature||"");drawSavedSignature("client",s.clientSignature||"");
 }
-function saveCertificateSignatures(){
-  if(!canEditTechnical())return alert("Tu perfil no puede firmar certificados.");
-  const id=$("sigService").value,d=state(),s=d.services.find(x=>x.id===id);if(!s)return alert("Selecciona un servicio.");
-  const tn=$("sigTechName").value.trim(),cn=$("sigClientName").value.trim();
-  if(!tn||!cn)return alert("Completa el nombre del técnico y de quien recibe.");
-  if(!$("sigTechCanvas").dataset.signed||!$("sigClientCanvas").dataset.signed)return alert("Se necesitan las dos firmas.");
-  s.technicianName=tn;s.technicianSignature=$("sigTechCanvas").toDataURL("image/png");
-  s.receivedBy=cn;s.receivedByRole=$("sigClientRole").value.trim();s.clientSignature=$("sigClientCanvas").toDataURL("image/png");
-  s.certificateSignedAt=new Date().toISOString();save(d);alert("Firmas guardadas en el certificado.");renderCerts()
+async function saveCertificateSignatures(){
+  if(!canEditTechnical())return alert('Tu perfil no puede firmar certificados.');
+  if(serviceWriteBusy)return;
+  const id=$('sigService').value,service=state().services.find(x=>x.id===id);
+  if(!service)return alert('Selecciona un servicio.');
+  const tn=$('sigTechName').value.trim(),cn=$('sigClientName').value.trim();
+  if(!tn||!cn)return alert('Completa el nombre del técnico y de quien recibe.');
+  if(!$('sigTechCanvas').dataset.signed||!$('sigClientCanvas').dataset.signed)return alert('Se necesitan las dos firmas.');
+  if(!navigator.onLine)return alert('Necesitas conexión para guardar las firmas. Conserva esta pantalla abierta.');
+  const patch={technician_name:tn,technician_signature:$('sigTechCanvas').toDataURL('image/png'),received_by:cn,received_by_role:$('sigClientRole').value.trim(),client_signature:$('sigClientCanvas').toDataURL('image/png'),certificate_signed_at:new Date().toISOString()};
+  serviceWriteBusy=true;
+  try{
+    const {data,error}=await sb.from('services').update(patch).eq('id',id).select('*').single();
+    if(error)throw error;
+    cacheConfirmedService(data);
+    alert('Las dos firmas quedaron confirmadas en la nube. El certificado y el informe usan estas mismas firmas.');
+  }catch(e){alert('No se pudieron confirmar las firmas: '+e.message+'. No cierres esta pantalla hasta guardarlas.');}
+  finally{serviceWriteBusy=false;}
 }
 function printSelectedSignedCertificate(){const id=$("sigService").value;if(!id)return alert("Selecciona un servicio.");printCertificate(id)}
 
 function printCertificate(id){
-  const d=state(),s=d.services.find(x=>x.id===id),cst=d.clients.find(x=>x.id===s.clientId)||{};
+  const d=state(),s=d.services.find(x=>x.id===id);if(!s||(isClient()&&s.clientId!==currentClientId()))return alert('Servicio no disponible para este usuario.');const cst=d.clients.find(x=>x.id===s.clientId)||{};
   const certNo="RX-"+(s.date||"").replaceAll("-","")+"-"+String(d.services.indexOf(s)+1).padStart(3,"0");
 
   // Coordenadas calibradas directamente sobre la plantilla 1086 × 1448 px.
@@ -948,45 +1015,45 @@ function printCertificate(id){
     .sheet{
       position:relative;width:210mm;height:280mm;flex:0 0 auto;overflow:hidden;background:white
     }
-    .sheet>img{position:absolute;inset:0;width:100%;height:100%;object-fit:fill}
+    .sheet>img.template{position:absolute;inset:0;width:100%;height:100%;object-fit:fill}
     .v{
       position:absolute;color:#111;font-size:8.1pt;line-height:1.05;font-weight:700;
       white-space:nowrap;overflow:hidden;text-overflow:clip
     }
     .v.small{font-size:7.1pt;font-weight:700}
-    .v.obs{font-size:7.3pt;white-space:normal;line-height:1.18;font-weight:500;overflow:hidden}
+    .v.obs{font-size:7.3pt;white-space:normal;line-height:1.35;font-weight:500;overflow:hidden;height:8mm}
     .v.center{text-align:center}
     .sig{position:absolute;object-fit:contain;filter:contrast(1.2)}
     @media print{html,body{background:white}.page{margin:0}}
   </style></head><body>
   <div class="page"><div class="sheet">
-    <img src="certificate_template.png" alt="Certificado ROKELUX">
+    <img class="template" src="certificate_template.png" alt="Certificado ROKELUX">
 
-    ${field(certNo,874,386,150,"small")}
-    ${field(fmt(s.date),909,436,124,"small")}
+    ${field(certNo,883,398,165,"small")}
+    ${field(fmt(s.date),907,449,140,"small")}
 
-    ${field(cst.name,198,621,372)}
-    ${field(cst.doc,198,648,372)}
-    ${field(cst.address,198,675,372)}
-    ${field(cst.address,198,702,372)}
+    ${field(cst.name,204,639,372)}
+    ${field(cst.doc,204,666,372)}
+    ${field(cst.address,204,691,372)}
+    ${field(cst.address,204,717,372)}
 
-    ${field(s.type,785,621,245,"small")}
-    ${field(fmt(s.date),785,648,245)}
-    ${field(s.areas,785,675,245,"small")}
+    ${field(s.type,786,639,246,"small")}
+    ${field(fmt(s.date),786,665,246)}
+    ${field(s.areas,786,691,246,"small")}
 
-    ${field(s.otherProduct,614,920,75,"small")}
-    ${field(s.notes||"Sin observaciones adicionales.",458,1048,560,"obs")}
+    ${field(s.otherProduct,636,945,60,"small")}
+    ${field(s.notes||"Sin observaciones adicionales.",54,1086,978,"obs")}
 
-    ${field(s.technicianName||"",122,1185,145,"small")}
-    ${sigimg(s.technicianSignature,118,1195,150,46)}
-    ${field(s.certificateSignedAt?new Date(s.certificateSignedAt).toLocaleDateString("es-EC"):"",122,1252,145,"small")}
+    ${field(s.technicianName||"",123,1209,144,"small")}
+    ${sigimg(s.technicianSignature,123,1230,144,26)}
+    ${field(s.certificateSignedAt?new Date(s.certificateSignedAt).toLocaleDateString("es-EC"):"",123,1277,144,"small")}
 
-    ${field(s.receivedBy||"",860,1185,145,"small")}
-    ${field(s.receivedByRole||"",860,1215,145,"small")}
-    ${sigimg(s.clientSignature,855,1222,155,38)}
-    ${field(s.certificateSignedAt?new Date(s.certificateSignedAt).toLocaleDateString("es-EC"):"",860,1252,145,"small")}
+    ${field(s.receivedBy||"",895,1208,141,"small")}
+    ${field(s.receivedByRole||"",895,1233,141,"small")}
+    ${sigimg(s.clientSignature,895,1251,141,22)}
+    ${field(s.certificateSignedAt?new Date(s.certificateSignedAt).toLocaleDateString("es-EC"):"",895,1284,141,"small")}
   </div></div>
-  <script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script>
+  <script>window.onload=()=>{document.querySelectorAll('.v:not(.obs)').forEach(e=>{let size=parseFloat(getComputedStyle(e).fontSize);while(e.scrollWidth>e.clientWidth&&size>6){size-=.25;e.style.fontSize=size+'px';}});setTimeout(()=>window.print(),350)}<\/script>
   </body></html>`;
 
   const w=window.open("","_blank");
@@ -1122,15 +1189,25 @@ function printInvoice(id){
   const w=window.open("","_blank");w.document.write(h);w.document.close();
 }
 function renderServiceReports(){
-  const d=state(),sel=$("srService"),list=$("serviceReportList");if(!sel||!list)return;
+  const d=state();if(isClient())d.services=d.services.filter(s=>s.clientId===currentClientId());const sel=$("srService"),list=$("serviceReportList");if(!sel||!list)return;
   const cur=sel.value;sel.innerHTML='<option value="">Seleccionar servicio…</option>'+[...d.services].reverse().map(s=>`<option value="${s.id}">${fmt(s.date)} · ${esc(clientName(s.clientId))} · ${esc(s.type)}</option>`).join("");if(cur)sel.value=cur;
   list.innerHTML=d.services.length?[...d.services].reverse().map(s=>`<div class="item"><div class="avatar">📋</div><div class="meta"><b>${esc(clientName(s.clientId))}</b><small>${fmt(s.date)} · ${esc(s.type)}</small></div><button class="btn primary" onclick="$('srService').value='${s.id}';printServiceReport()">Informe</button></div>`).join(""):`<div class="empty">No hay servicios realizados.</div>`;
 }
-function printServiceReport(){
+async function printServiceReport(){
+  const id=$('srService').value;if(!id)return alert('Selecciona un servicio.');
+  const popup=window.open('','_blank');if(!popup)return alert('Permite ventanas emergentes para abrir el informe.');
+  popup.document.body.textContent='Cargando el servicio y sus fotografías desde la nube…';
+  try{
+    const {data,error}=await sb.from('services').select('*').eq('id',id).single();if(error)throw error;
+    if(isClient()&&data.client_id!==currentClientId())throw Error('Servicio no autorizado.');
+    cacheConfirmedService(data);$('srService').value=id;renderServiceReportDocument(popup);
+  }catch(e){popup.close();alert('No se pudo cargar el informe: '+e.message);}
+}
+function renderServiceReportDocument(popup){
   const id=$("srService").value;if(!id)return alert("Selecciona un servicio.");
-  const d=state(),s=d.services.find(x=>x.id===id),cl=d.clients.find(x=>x.id===s.clientId)||{};
+  const d=state(),s=d.services.find(x=>x.id===id);if(!s||(isClient()&&s.clientId!==currentClientId()))return alert('Servicio no disponible para este usuario.');const cl=d.clients.find(x=>x.id===s.clientId)||{};
   const activity=(s.activity||[]).map(a=>`<tr><td>${esc(a.pest)}</td><td><span class="pill">${esc(a.level)}</span></td><td>${a.count||0}</td></tr>`).join("")||"<tr><td colspan='3'>Sin niveles registrados</td></tr>";
-  const photos=(s.photos||[]).map(p=>`<img src="${p}">`).join("");
+  const photos=(s.photos||[]).map((p,i)=>`<img alt="Fotografía ${i+1} del servicio" src="${esc(typeof p==='string'?p:(p?.url||p?.dataUrl||''))}">`).join("");
   const techSig=s.technicianSignature?`<img src="${s.technicianSignature}"><br>`:"";
   const clientSig=s.clientSignature?`<img src="${s.clientSignature}"><br>`:"";
   const h=`<!doctype html><html><head><meta charset="utf-8"><title>Informe ${esc(cl.name||"")}</title><style>${docBaseCss()}</style></head><body><div class="page">
@@ -1142,8 +1219,8 @@ function printServiceReport(){
   ${photos?`<div class="section"><h2>Evidencia fotográfica</h2><div class="photo-grid">${photos}</div></div>`:""}
   <div class="signatures avoid"><div class="sigbox">${techSig}<b>${esc(s.technicianName||"Técnico responsable")}</b><br>Técnico ROKELUX</div><div class="sigbox">${clientSig}<b>${esc(s.receivedBy||"Recibido por")}</b><br>${esc(s.receivedByRole||"Cliente / representante")}</div></div>
   <div class="footer"><span>ROKELUX · 099 498 1292 · rokelux@proton.me</span><span>Informe técnico</span></div>
-  </div><script>window.onload=()=>window.print()<\/script></body></html>`;
-  const w=window.open("","_blank");w.document.write(h);w.document.close();
+  </div><script>window.onload=async()=>{await Promise.all(Array.from(document.images).map(img=>img.decode?img.decode().catch(()=>{}):Promise.resolve()));const failed=Array.from(document.images).filter(img=>!img.naturalWidth);if(failed.length){const message=document.createElement('p');message.textContent='No se pudieron abrir '+failed.length+' imágenes. Revisa la conexión o el formato antes de imprimir.';message.style.color='red';document.body.prepend(message);return;}window.print();}<\/script></body></html>`;
+  const w=popup;w.document.open();w.document.write(h);w.document.close();
 }
 function renderBusinessSelects(){
   const d=state(),opts='<option value="">Seleccionar cliente…</option>'+d.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
