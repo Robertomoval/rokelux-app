@@ -144,7 +144,7 @@
 
 <div class="app">
   <header><div class="brand"><img src="logo.png" alt="ROKELUX"><div><div class="badge">PEST MANAGEMENT & BIOSECURITY</div><div class="muted">Control • Protección • Bienestar</div></div></div>
-<div class="user-menu"><div class="user-mini"><b id="currentUserName">Usuario</b><span id="currentUserRole">Perfil</span></div><button class="btn ghost" onclick="logout()">Salir</button></div></header>
+<div class="user-menu"><div class="user-mini"><b id="currentUserName">Usuario</b><span id="currentUserRole">Perfil</span></div><button id="dispatchOpen" hidden class="btn ghost" onclick="Dispatch.open()">Mis servicios / Traslados</button><button class="btn ghost" onclick="logout()">Salir</button></div></header>
   <main class="shell content">
     <section id="home" class="screen active">
       <div class="hero"><h1>¡Hola!<br><span>ROKELUX</span> en acción.</h1><p>Controlamos hoy, protegemos tu mañana.</p>
@@ -656,7 +656,7 @@ async function restoreSession(){
   if(!data.session)return;
   try{sessionUser=await fetchMyProfile(data.session.user);await loadCloudState();$('loginOverlay').style.display='none';applyRole();renderAll()}catch(e){await sb.auth.signOut();sessionUser=null}
 }
-async function logout(){sessionUser=null;cloudReady=false;await sb.auth.signOut();$('loginOverlay').style.display='grid';$('loginPass').value='';$('loginStatus').textContent='';window.scrollTo(0,0)}
+async function logout(){await Dispatch.endSession();sessionUser=null;cloudReady=false;await sb.auth.signOut();$('loginOverlay').style.display='grid';$('loginPass').value='';$('loginStatus').textContent='';window.scrollTo(0,0)}
 function roleLabel(r){return r==="admin"?"Administrativo":r==="technician"?"Técnico":"Cliente"}
 function isAdmin(){return sessionUser?.role==="admin"}function isTech(){return sessionUser?.role==="technician"}function isClient(){return sessionUser?.role==="client"}
 function canEditTechnical(){return isAdmin()||isTech()}
@@ -1412,7 +1412,7 @@ function printClientReport(){
   </div><script>window.onload=()=>window.print()<\/script></body></html>`;
   const w=window.open("","_blank");w.document.write(report);w.document.close();
 }
-function renderAll(){renderHome();renderClients();renderSelects();renderHistory();renderCerts();renderCalendar();renderReportSelect();renderReport();renderBusinessSelects();renderQuotes();renderInvoices();renderServiceReports();renderStationMap();renderClientPortal();renderClientDocs();renderClientQuotes();renderClientInvoices();renderUsers();renderSignatureServiceSelect()}
+function renderAll(){if(typeof Dispatch!=="undefined")Dispatch.render();renderHome();renderClients();renderSelects();renderHistory();renderCerts();renderCalendar();renderReportSelect();renderReport();renderBusinessSelects();renderQuotes();renderInvoices();renderServiceReports();renderStationMap();renderClientPortal();renderClientDocs();renderClientQuotes();renderClientInvoices();renderUsers();renderSignatureServiceSelect()}
 document.addEventListener("DOMContentLoaded",async()=>{
   makeChips("inspectionPests",pests,"ip");makeChips("servicePests",pests,"sp");makeChips("products",products,"pr");addQuoteItem();addInvoiceItem();
   const now=new Date(),t=now.toISOString().slice(0,10),from=new Date(now.getFullYear(),now.getMonth()-5,1).toISOString().slice(0,10);$("iDate").value=t;$("sDate").value=t;if($("qDate"))$("qDate").value=t;if($("fDate"))$("fDate").value=t;if($("rFrom"))$("rFrom").value=from;if($("rTo"))$("rTo").value=t;
@@ -1420,5 +1420,171 @@ document.addEventListener("DOMContentLoaded",async()=>{
   renderAll();await restoreSession();
   if("serviceWorker"in navigator)navigator.serviceWorker.register("service-worker.js").catch(()=>{});
 });
+</script>
+<style>
+ #dispatchPanel{position:fixed;inset:0;z-index:150;background:#090e0b;overflow:auto;padding:24px 16px 100px;color:#edf5ee}
+ #dispatchPanel[hidden],#dispatchBanner[hidden],#dispatchOpen[hidden],#dispatchAssign[hidden],#dispatchMapBox[hidden]{display:none!important}
+ #dispatchPanel .dispatch-content{max-width:900px;margin:auto}#dispatchPanel .panel{margin:14px 0;padding:16px}
+ #dispatchBanner{position:fixed;bottom:80px;left:10px;right:10px;z-index:160;padding:12px;background:#20351d;border:1px solid #9be22d;border-radius:12px;font-size:13px}
+ #dispatchMap{width:100%;height:320px;border:0}
+</style>
+<aside id="dispatchBanner" hidden><span id="dispatchBannerText"></span> <button class="btn ghost" onclick="Dispatch.stop()">Dejar de compartir</button></aside>
+<div id="dispatchPanel" hidden role="dialog" aria-modal="true" aria-label="Servicios asignados y traslados">
+ <div class="dispatch-content">
+ <button class="btn ghost" onclick="document.getElementById('dispatchPanel').hidden=true">Cerrar</button>
+ <h2>Servicios asignados y traslados</h2>
+ <p>Consulta de ubicación cada 15 segundos mientras este panel está abierto. El técnico debe mantener ROKELUX abierta durante el traslado. Sin notificaciones fuera de la app.</p>
+ <p id="dispatchMessage" role="status" aria-live="polite"></p>
+ <div id="dispatchAssign" hidden class="panel">
+ <h3>Asignar servicio</h3>
+ <div class="field"><label for="dispatchClient">Cliente</label><select id="dispatchClient"></select></div>
+ <div class="field"><label for="dispatchTech">Técnico</label><select id="dispatchTech"></select></div>
+ <div class="field"><label for="dispatchTitle">Servicio o tarea</label><input id="dispatchTitle" maxlength="200"></div>
+ <div class="field"><label for="dispatchWhen">Fecha y hora local</label><input id="dispatchWhen" type="datetime-local"></div>
+ <button id="dispatchCreate" class="btn primary" onclick="Dispatch.create()">Asignar</button>
+ </div>
+ <button class="btn ghost" onclick="Dispatch.open()">Actualizar tareas</button>
+ <div id="dispatchMapBox" hidden><p id="dispatchMapStatus"></p><iframe id="dispatchMap" title="Última ubicación del técnico" loading="lazy" referrerpolicy="no-referrer"></iframe><small>Mapa de OpenStreetMap. Muestra el último punto recibido, no un historial del recorrido.</small></div>
+ <div id="dispatchRows"></div>
+ <p>Finalizar una tarea no genera un certificado: registra el trabajo realizado en Servicios como de costumbre.</p>
+ </div>
+</div>
+
+<script>
+// Location is transmitted only after an explicit start and browser permission.
+const Dispatch=(()=>{
+ let rows=[],watch=null,activeId=null,latest=null,lastSent=0,sending=false,loading=false,busy=false,owner=null,mapId=null,pendingStop=null;
+ const labels={assigned:'Asignado',accepted:'Aceptado',traveling:'En traslado',arrived:'En servicio',completed:'Finalizado',cancelled:'Cancelado'};
+ const rpc=async(action,id=null,payload={})=>{const {data,error}=await sb.rpc('rokelux_dispatch_action',{action,task_id:id,payload});if(error)throw Error(error.message);return data;};
+ function stopLocal(){if(watch!==null)navigator.geolocation.clearWatch(watch);watch=null;activeId=null;latest=null;lastSent=0;}
+ function message(text){$('dispatchMessage').textContent=text;}
+ function banner(text){$('dispatchBanner').hidden=false;$('dispatchBannerText').textContent=text;}
+ function statusText(t){
+   if(t.status!=='traveling')return labels[t.status]||t.status;
+   if(!t.sharing)return 'En traslado · ubicación detenida';
+   if(!t.location_at)return 'En traslado · esperando ubicación';
+   const seconds=Math.max(0,Math.floor((Date.now()-Date.parse(t.location_at))/1000));
+   return seconds>45?'Sin actualización reciente · última ubicación hace '+Math.ceil(seconds/60)+' min':'Ubicación actualizada hace '+seconds+' s';
+ }
+ function arrivalText(t){
+   if(!t.sharing||!t.expected_at||t.status!=='traveling')return '';
+   const mins=Math.ceil((Date.parse(t.expected_at)-Date.now())/60000);
+   return mins>0?'Llegada estimada por el técnico: '+mins+' min (sin cálculo de tráfico).':'La estimación del técnico ha vencido.';
+ }
+ function mapURL(t){
+   if(!t.sharing||t.latitude==null||t.longitude==null)return '';
+   const lat=Number(t.latitude),lng=Number(t.longitude);
+   if(!Number.isFinite(lat)||!Number.isFinite(lng)||Math.abs(lat)>90||Math.abs(lng)>180)return '';
+   const bbox=[Math.max(-180,lng-.012),Math.max(-90,lat-.008),Math.min(180,lng+.012),Math.min(90,lat+.008)].join(',');
+   return 'https://www.openstreetmap.org/export/embed.html?bbox='+encodeURIComponent(bbox)+'&layer=mapnik&marker='+encodeURIComponent(lat+','+lng);
+ }
+ function render(){
+   const user=sessionUser;
+   $('dispatchOpen').hidden=!user;
+   if(!user)return;
+   if(owner!==user.id){stopLocal();rows=[];pendingStop=null;owner=user.id;mapId=null;$('dispatchMapBox').hidden=true;$('dispatchMap').removeAttribute('src');}
+   $('dispatchAssign').hidden=!isAdmin();
+   $('dispatchRows').innerHTML=rows.map(t=>{
+     const own=isTech()&&t.technician_id===user.id;
+     let buttons='';
+     const btn=(action,label)=>'<button class="btn ghost" '+(busy?'disabled ':'')+'onclick="Dispatch.act(\''+action+'\',\''+t.id+'\')">'+label+'</button>';
+     if(own&&t.status==='assigned')buttons+=btn('accept','Aceptar servicio');
+     if(own&&(t.status==='accepted'||t.status==='traveling')&&activeId!==t.id)buttons+=btn('start','Iniciar / reanudar traslado');
+     if(own&&t.status==='traveling'){buttons+=btn('pause','Dejar de compartir')+btn('arrive','Llegué');}
+     if(own&&t.status==='arrived')buttons+=btn('complete','Finalizar tarea');
+     if(isAdmin()&&!['completed','cancelled'].includes(t.status))buttons+=btn('cancel','Cancelar tarea');
+     if(mapURL(t))buttons+='<button class="btn primary" onclick="Dispatch.map(\''+t.id+'\')">Ver ubicación</button>';
+     return '<div class="panel"><b>'+esc(t.title)+'</b><p>'+esc(t.client_name)+' · '+esc(t.technician_name)+'</p><p>'+esc(new Date(t.scheduled_at).toLocaleString('es-EC'))+'</p><p>'+esc(statusText(t))+'</p><small>'+esc(arrivalText(t))+'</small>'+(t.location_at?'<p>Último dato: '+esc(new Date(t.location_at).toLocaleTimeString('es-EC'))+' · precisión aproximada '+Math.round(t.accuracy)+' m</p>':'')+'<div class="actions" style="flex-wrap:wrap">'+buttons+'</div></div>';
+   }).join('')||'<p>No hay tareas asignadas.</p>';
+   if(mapId){const t=rows.find(t=>t.id===mapId),url=t&&mapURL(t);if(url){if($('dispatchMap').getAttribute('src')!==url)$('dispatchMap').src=url;$('dispatchMapStatus').textContent=statusText(t);}else{mapId=null;$('dispatchMapBox').hidden=true;$('dispatchMap').removeAttribute('src');}}
+ }
+ async function refresh(){
+   if(!sessionUser||loading)return;
+   const uid=sessionUser.id;loading=true;
+   try{
+     const {data,error}=await sb.from('rokelux_dispatch').select('*').order('scheduled_at',{ascending:false}).limit(200);
+     if(error)throw Error(error.message);
+     if(sessionUser?.id!==uid)return;
+     rows=data||[];
+     if(activeId&&!rows.some(t=>t.id===activeId&&t.sharing&&t.status==='traveling')){stopLocal();banner('La ubicación compartida se detuvo.');}
+     render();
+   }catch(e){message('No se pudo consultar traslados. '+e.message);}finally{loading=false;}
+ }
+ async function open(){
+   if(!sessionUser)return;
+   $('dispatchPanel').hidden=false;
+   if(isAdmin()){
+     const results=await Promise.all([sb.from('clients').select('id,name').eq('active',true),sb.from('profiles').select('user_id,full_name').eq('role','technician').eq('active',true)]);
+     if(results.some(x=>x.error)){message('No se pudieron cargar clientes o técnicos desde Supabase.');return;}
+     $('dispatchClient').innerHTML='<option value="">Selecciona cliente</option>'+results[0].data.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
+     $('dispatchTech').innerHTML='<option value="">Selecciona técnico</option>'+results[1].data.map(t=>'<option value="'+t.user_id+'">'+esc(t.full_name)+'</option>').join('');
+   }
+   await refresh();render();
+ }
+ async function create(){
+   if(!isAdmin()||busy)return;
+   const title=$('dispatchTitle').value.trim(),when=new Date($('dispatchWhen').value),client_id=$('dispatchClient').value,technician_id=$('dispatchTech').value;
+   if(!title||!client_id||!technician_id||!Number.isFinite(when.getTime()))return message('Completa cliente, técnico, servicio, fecha y hora.');
+   busy=true;$('dispatchCreate').disabled=true;
+   try{await rpc('create',null,{title,client_id,technician_id,scheduled_at:when.toISOString()});message('Tarea asignada. El técnico la verá en Mis servicios al abrir o actualizar este panel.');$('dispatchTitle').value='';await refresh();}
+   catch(e){message(e.message);}finally{busy=false;$('dispatchCreate').disabled=false;render();}
+ }
+ async function flush(){
+   if(pendingStop&&navigator.onLine){const id=pendingStop;try{await rpc('pause',id);if(pendingStop===id){pendingStop=null;banner('Ubicación compartida detenida.');}}catch{}}
+   if(!activeId||!latest||sending||!navigator.onLine||Date.now()-lastSent<10000)return;
+   const id=activeId,point=latest;
+   if(Date.now()-point.timestamp>45000){banner('GPS activo, pero sin posición reciente. Mantén ROKELUX abierta.');return;}
+   sending=true;
+   try{
+     await rpc('ping',id,{latitude:point.coords.latitude,longitude:point.coords.longitude,accuracy:point.coords.accuracy,location_at:new Date(point.timestamp).toISOString()});
+     if(activeId===id){lastSent=Date.now();banner('Ubicación compartida con administración y el cliente de este servicio.');}
+   }catch(e){if(activeId===id)banner('No se pudo enviar la ubicación. Se reintentará mientras el traslado esté activo.');}
+   finally{sending=false;}
+ }
+ async function act(action,id){
+   if(busy)return;
+   const t=rows.find(t=>t.id===id);if(!t)return;
+   if(action==='start'){
+     if(activeId||pendingStop)return message('Detén el traslado anterior y confirma su cierre con conexión antes de iniciar otro.');
+     if(!navigator.geolocation)return message('Tu navegador no permite GPS.');
+     if(!navigator.onLine)return message('Necesitas conexión para iniciar el traslado.');
+     if(!confirm('Compartirás tu ubicación con administración y el cliente de este servicio hasta pulsar Llegué o Dejar de compartir. Mantén ROKELUX abierta: el GPS puede pausarse al bloquear el celular. ¿Iniciar?'))return;
+     const input=prompt('¿En cuántos minutos estimas llegar? (1 a 1440)');if(input===null)return;
+     const minutes=Number(input);if(!Number.isInteger(minutes)||minutes<1||minutes>1440)return message('Indica minutos entre 1 y 1440.');
+     busy=true;render();
+     try{
+       const pos=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:15000,maximumAge:0}));
+       if(!isTech()||sessionUser.id!==t.technician_id)throw Error('La sesión cambió.');
+       await rpc('start',id,{minutes});activeId=id;latest=pos;
+       banner('Ubicación compartida con administración y el cliente de este servicio.');
+       watch=navigator.geolocation.watchPosition(p=>{latest=p;flush();},()=>banner('No se puede obtener una ubicación nueva. Revisa el permiso GPS y mantén la app abierta.'),{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+       await flush();await refresh();
+     }catch(e){if(activeId===id){stopLocal();try{await rpc('pause',id);}catch{pendingStop=id;}banner('GPS detenido. Revisa la conexión antes de reanudar.');}message('No se pudo iniciar: '+(e.message||'Revisa el permiso de ubicación.'));}
+     finally{busy=false;render();}
+     return;
+   }
+   if(action==='cancel'&&!confirm('¿Cancelar esta tarea? También se detendrá el seguimiento.'))return;
+   // Stop collection immediately, even when the connection is unavailable.
+   if(['pause','arrive'].includes(action)&&activeId===id){stopLocal();banner('GPS detenido en este dispositivo. Confirmando cierre…');}
+   busy=true;render();
+   try{await rpc(action,id);if(action==='pause'||action==='arrive'){pendingStop=null;banner('Ubicación compartida detenida.');}message('Cambio guardado.');await refresh();}
+   catch(e){if(action==='pause'||action==='arrive'){pendingStop=id;banner('GPS detenido. Falta conexión para confirmar el cierre; vuelve a marcar Llegué cuando tengas internet.');}message(e.message);}
+   finally{busy=false;render();}
+ }
+ async function endSession(){const id=activeId||pendingStop;stopLocal();pendingStop=null;rows=[];owner=null;$('dispatchPanel').hidden=true;$('dispatchBanner').hidden=true;$('dispatchMap').removeAttribute('src');if(id){try{await rpc('pause',id);}catch{}}}
+ function map(id){mapId=id;$('dispatchMapBox').hidden=false;render();$('dispatchMapBox').scrollIntoView({behavior:'smooth'});}
+ setInterval(()=>{
+   if(!sessionUser){if(owner){stopLocal();rows=[];owner=null;pendingStop=null;$('dispatchPanel').hidden=true;$('dispatchBanner').hidden=true;}render();return;}
+   if(owner!==sessionUser.id){stopLocal();rows=[];pendingStop=null;owner=sessionUser.id;render();}
+   if(!$('dispatchPanel').hidden||activeId)refresh();
+ },15000);
+ setInterval(flush,10000);
+ window.addEventListener('online',()=>{flush();if(!$('dispatchPanel').hidden)refresh();});
+ window.addEventListener('offline',()=>{if(activeId)banner('Sin internet. La ubicación no se está enviando; se reanudará al volver la conexión.');});
+ window.addEventListener('pagehide',stopLocal);
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&activeId)flush();});
+ return {open,create,act,map,render,endSession,stop:()=>{const t=activeId||pendingStop;if(t)act('pause',t);}};
+})();
+
 </script>
 </body></html>
