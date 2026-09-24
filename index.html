@@ -351,7 +351,7 @@
         <h3 style="margin:8px 0">Detalle</h3>
         <table class="doc-table"><thead><tr><th>Descripción</th><th style="width:70px">Cant.</th><th style="width:95px">P. unit.</th><th style="width:90px">Total</th><th></th></tr></thead><tbody id="qItems"></tbody></table>
         <button class="btn secondary" style="margin-top:10px" onclick="addQuoteItem()">+ Agregar ítem</button>
-        <div class="totals"><div class="line"><span>Subtotal</span><b id="qSubtotal" class="money">$0.00</b></div><div class="line grand"><span>Total</span><b id="qTotal" class="money">$0.00</b></div></div>
+        <div class="field"><label for="qVat">IVA de la cotización</label><select id="qVat" onchange="calcQuote()"><option value="0">0%</option><option value="15">15%</option></select></div><div class="totals"><div class="line"><span>Subtotal</span><b id="qSubtotal" class="money">$0.00</b></div><div class="line"><span id="qVatLabel">IVA (0%)</span><b id="qVatAmount" class="money">$0.00</b></div><div class="line grand"><span>Total</span><b id="qTotal" class="money">$0.00</b></div></div>
         <button class="btn primary" style="width:100%;margin-top:12px" onclick="saveQuote()">Guardar cotización</button>
       </div>
       <div class="section-title"><h2>Historial de cotizaciones</h2></div>
@@ -605,8 +605,8 @@ function serviceToDb(s){return clean({id:s.id,client_id:s.clientId,service_date:
 function serviceFromDb(s){return {id:s.id,clientId:s.client_id,date:s.service_date,type:s.service_type||"",areas:s.areas||"",pests:s.pests||[],products:s.products||[],otherProduct:s.other_product||"",notes:s.notes||"",photos:s.photos||[],activity:s.activity||[],technicianName:s.technician_name||"",technicianSignature:s.technician_signature||"",receivedBy:s.received_by||"",receivedByRole:s.received_by_role||"",clientSignature:s.client_signature||"",supervisorName:s.supervisor_name||"",supervisorSignature:s.supervisor_signature||"",supervisorSignedAt:s.supervisor_signed_at||null,certificateSignedAt:s.certificate_signed_at||"",createdBy:s.created_by||null}}
 function inspectionToDb(x){return {id:x.id,client_id:x.clientId,inspection_date:x.date,address:x.address||null,installation_type:x.type||null,contact:x.contact||null,notes:x.notes||null,pests:x.pests||[],created_by:x.createdBy||null}}
 function inspectionFromDb(x){return {id:x.id,clientId:x.client_id,date:x.inspection_date,address:x.address||"",type:x.installation_type||"",contact:x.contact||"",notes:x.notes||"",pests:x.pests||[]}}
-function quoteToDb(q){return {id:q.id,client_id:q.clientId,number:q.number,quote_date:q.date,validity_days:q.validity||15,notes:q.notes||null,items:q.items||[],subtotal:Number(q.subtotal||q.total||0),total:Number(q.total||0),status:q.status||"Pendiente",client_decision_at:q.clientDecisionAt||null}}
-function quoteFromDb(q){return {id:q.id,clientId:q.client_id,number:q.number,date:q.quote_date,validity:q.validity_days,notes:q.notes||"",items:q.items||[],subtotal:Number(q.subtotal||0),total:Number(q.total||0),status:q.status||"Pendiente",clientDecisionAt:q.client_decision_at||""}}
+function quoteToDb(q){return {id:q.id,client_id:q.clientId,number:q.number,quote_date:q.date,validity_days:q.validity||15,notes:q.notes||null,items:q.items||[],subtotal:Number(q.subtotal??q.total??0),vat_rate:Number(q.vatRate||0),vat:Number(q.vat||0),total:Number(q.total||0),status:q.status||"Pendiente",client_decision_at:q.clientDecisionAt||null}}
+function quoteFromDb(q){return {id:q.id,clientId:q.client_id,number:q.number,date:q.quote_date,validity:q.validity_days,notes:q.notes||"",items:q.items||[],subtotal:Number(q.subtotal??q.total??0),vatRate:Number(q.vat_rate||0),vat:Number(q.vat||0),total:Number(q.total||0),status:q.status||"Pendiente",clientDecisionAt:q.client_decision_at||""}}
 function invoiceToDb(f){return {id:f.id,client_id:f.clientId,number:f.number,invoice_date:f.date,items:f.items||[],subtotal:Number(f.subtotal||0),vat_rate:Number(f.vatRate||0),vat:Number(f.vat||0),total:Number(f.total||0),status:f.status||"Borrador",access_key:f.accessKey||null}}
 function invoiceFromDb(f){return {id:f.id,clientId:f.client_id,number:f.number,date:f.invoice_date,items:f.items||[],subtotal:Number(f.subtotal||0),vatRate:Number(f.vat_rate||0),vat:Number(f.vat||0),total:Number(f.total||0),status:f.status||"Borrador",accessKey:f.access_key||""}}
 function stationToDb(x){return {id:x.id,client_id:x.clientId,code:x.code,x:Number(x.x||0),y:Number(x.y||0),status:x.status||"Operativa",last_check:x.lastCheck||null,notes:packStationNotes(x)}}
@@ -1134,7 +1134,13 @@ function calcDoc(tbodyId){
   }); return total;
 }
 function addQuoteItem(item){addDocItem("qItems","calcQuote",item)}
-function calcQuote(){const s=calcDoc("qItems");if($("qSubtotal"))$("qSubtotal").textContent=money(s);if($("qTotal"))$("qTotal").textContent=money(s)}
+function quoteAmounts(items,rate){
+ const vatRate=Number(rate)===15?15:0;
+ const subtotal=Math.round(items.reduce((sum,item)=>sum+Math.round(Number(item.qty)*Number(item.price)*100),0))/100;
+ const vat=Math.round(subtotal*vatRate)/100;
+ return {subtotal,vatRate,vat,total:Math.round((subtotal+vat)*100)/100};
+}
+function calcQuote(){calcDoc("qItems");const v=quoteAmounts(getDocItems("qItems"),$("qVat").value);$("qSubtotal").textContent=money(v.subtotal);$("qVatAmount").textContent=money(v.vat);$("qVatLabel").textContent="IVA ("+v.vatRate+"%)";$("qTotal").textContent=money(v.total)}
 function addInvoiceItem(item){addDocItem("fItems","calcInvoice",item)}
 function calcInvoice(){
   const sub=calcDoc("fItems"),rate=Number($("fVat")?.value||0),vat=sub*rate/100,total=sub+vat;
@@ -1144,8 +1150,8 @@ function calcInvoice(){
 }
 function saveQuote(){if(!isAdmin())return alert("Solo el perfil administrativo puede crear cotizaciones.");
   const d=state(),clientId=$("qClient").value,items=getDocItems("qItems"); if(!clientId)return alert("Selecciona un cliente."); if(!items.length)return alert("Agrega al menos un ítem.");
-  const total=items.reduce((a,x)=>a+x.qty*x.price,0);
-  d.quotes.push({id:crypto.randomUUID(),number:"COT-"+String(d.quotes.length+1).padStart(5,"0"),clientId,date:$("qDate").value,validity:Number($("qValidity").value||15),notes:$("qNotes").value,items,total,status:"Borrador"});
+  const amounts=quoteAmounts(items,$("qVat").value);
+  d.quotes.push({id:crypto.randomUUID(),number:"COT-"+String(d.quotes.length+1).padStart(5,"0"),clientId,date:$("qDate").value,validity:Number($("qValidity").value||15),notes:$("qNotes").value,items,...amounts,status:"Borrador"});
   save(d);$("qItems").innerHTML="";addQuoteItem();$("qNotes").value="";alert("Cotización guardada.");renderQuotes();
 }
 function quoteStatusClass(s){return String(s||"").toLowerCase()}
@@ -1196,13 +1202,13 @@ function printQuote(id){
   <div class="card"><div class="meta-grid"><div><b>Cliente:</b> ${esc(cl.name||"")}</div><div><b>RUC/C.I.:</b> ${esc(cl.doc||"")}</div><div><b>Dirección:</b> ${esc(cl.address||"")}</div><div><b>Fecha:</b> ${fmt(q.date)}</div><div><b>Validez:</b> ${q.validity} días</div><div><b>Estado:</b> ${esc(q.status||"Pendiente")}</div></div></div>
   <div class="section avoid"><h2>Detalle de servicios</h2><table><tr><th>Descripción</th><th>Cant.</th><th>P. unit.</th><th>Total</th></tr>${rows}</table></div>
   ${q.notes?`<div class="card analysis"><h3>Alcance / observaciones</h3><div style="font-size:10px;line-height:1.5">${esc(q.notes)}</div></div>`:""}
-  <div class="totalbox"><div><span>Subtotal</span><b>${money(q.subtotal||q.total)}</b></div><div class="grand"><span>TOTAL</span><span>${money(q.total)}</span></div></div>
+  <div class="totalbox"><div><span>Subtotal</span><b>${money(q.subtotal??q.total)}</b></div><div><span>IVA (${Number(q.vatRate||0)}%)</span><b>${money(q.vat||0)}</b></div><div class="grand"><span>TOTAL</span><span>${money(q.total)}</span></div></div>
   <div class="footer"><span>ROKELUX · Protegemos lo que más importa.</span><span>Cotización ${esc(q.number)}</span></div>
   </div><script>window.onload=()=>window.print()<\/script></body></html>`;
   const w=window.open("","_blank");w.document.write(h);w.document.close();
 }
 function quoteToInvoice(id){
-  const d=state(),q=d.quotes.find(x=>x.id===id); if(!q)return; go("billing");$("fClient").value=q.clientId;$("fItems").innerHTML="";q.items.forEach(addInvoiceItem);calcInvoice();
+  const d=state(),q=d.quotes.find(x=>x.id===id); if(!q)return; go("billing");$("fClient").value=q.clientId;$("fItems").innerHTML="";q.items.forEach(addInvoiceItem);$("fVat").value=String(q.vatRate||0);calcInvoice();
 }
 function invoiceStatusClass(s){s=String(s||"").toLowerCase();if(s.includes("pendiente"))return"pendiente";if(s.includes("autorizada"))return"autorizada";if(s.includes("rechazada"))return"rechazada";return"borrador"}
 function saveInvoice(){if(!isAdmin())return alert("Solo el perfil administrativo puede gestionar facturación.");
