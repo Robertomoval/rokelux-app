@@ -110,7 +110,7 @@
     @media(max-width:620px){.signature-grid{grid-template-columns:1fr}}
 
 .rokel-card{display:flex;gap:14px;align-items:center;background:#101612;border:1px solid #2b422c;border-radius:18px;padding:8px 16px;margin:16px 0}.rokel-card img{object-fit:contain;flex-shrink:0}.rokel-card b{color:var(--green);font-size:13px}.rokel-card p{color:#c4cec6;font-size:12px;line-height:1.6;margin-top:6px}.bait-choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.bait-choices label{padding:10px;border:2px solid #39483d;border-radius:12px;cursor:pointer}.bait-choices label:has(input:checked){border-color:var(--bait);box-shadow:0 0 0 1px var(--bait)}.bait-choices input{accent-color:var(--bait)}.pin-label{position:absolute;top:28px;background:#101612;color:white;padding:2px 5px;border-radius:4px;white-space:nowrap;font-size:9px}.station-pin:focus{z-index:2;outline:2px solid white}dialog::backdrop{background:#000b}[hidden]{display:none!important}
-</style>
+input[hidden],div[hidden]{display:none!important}</style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -342,20 +342,20 @@
     <section id="quotes" class="screen">
       <div class="section-title"><h2>Cotizaciones</h2><span class="muted">Crear, enviar y convertir</span></div>
       <div class="panel">
-        <div class="field"><label>Cliente</label><select id="qClient"></select></div>
+        <div class="field"><label>Cliente</label><select id="qClient" onchange="quotePhoneFromClient()"></select></div>
         <div class="cols">
           <div class="field"><label>Fecha</label><input id="qDate" type="date"></div>
-          <div class="field"><label>Validez (días)</label><input id="qValidity" type="number" min="1" value="15"></div>
+          <div class="field"><label for="qOffer">Vigencia de la Oferta</label><select id="qOffer" onchange="quoteCustom('qOffer')"><option>7 días</option><option selected>15 días</option><option>30 días</option><option>60 días</option><option value="__manual">Escribir manualmente…</option></select><input id="qOfferManual" hidden maxlength="250" aria-label="Vigencia de la Oferta manual" placeholder="Escribe el valor"></div>
         </div>
-        <div class="field"><label>Notas / alcance</label><textarea id="qNotes" placeholder="Ej. inspección inicial, tratamiento, seguimiento..."></textarea></div>
+        <div class="field"><label for="qPayment">Forma de Pago</label><select id="qPayment" onchange="quoteCustom('qPayment')"><option>Transferencia bancaria</option><option>Contado</option><option>50% anticipo y 50% al finalizar</option><option>Crédito a 30 días</option><option value="__manual">Escribir manualmente…</option></select><input id="qPaymentManual" hidden maxlength="250" aria-label="Forma de Pago manual" placeholder="Escribe el valor"></div><div class="field"><label for="qExecution">Plazo de ejecución</label><select id="qExecution" onchange="quoteCustom('qExecution')"><option>1 día</option><option>2 días</option><option>3 días</option><option>Dentro de 48 horas de aprobada la oferta</option><option value="__manual">Escribir manualmente…</option></select><input id="qExecutionManual" hidden maxlength="250" aria-label="Plazo de ejecución manual" placeholder="Escribe el valor"></div><div class="field"><label for="qPhone">Teléfono</label><input id="qPhone" type="tel" maxlength="80" placeholder="Editable; se completa desde la ficha del cliente"></div><div class="field"><label for="qCpc">CPC</label><select id="qCpc" onchange="quoteCustom('qCpc')"><option value="__manual" selected>Escribir manualmente…</option></select><input id="qCpcManual" maxlength="250" aria-label="CPC manual" placeholder="Escribe el valor"></div><small>El desplegable de CPC mostrará valores usados anteriormente. Escribe el código que corresponda; la app no lo clasifica automáticamente.</small><div class="field"><label for="qSigner">Nombre para el espacio de firma (opcional)</label><input id="qSigner" maxlength="150"></div><div class="field"><label for="qSignerRole">Cargo (opcional)</label><input id="qSignerRole" maxlength="100"></div><div class="field"><label>Notas / alcance</label><textarea id="qNotes" placeholder="Ej. inspección inicial, tratamiento, seguimiento..."></textarea></div>
         <h3 style="margin:8px 0">Detalle</h3>
         <table class="doc-table"><thead><tr><th>Descripción</th><th style="width:70px">Cant.</th><th style="width:95px">P. unit.</th><th style="width:90px">Total</th><th></th></tr></thead><tbody id="qItems"></tbody></table>
         <button class="btn secondary" style="margin-top:10px" onclick="addQuoteItem()">+ Agregar ítem</button>
         <div class="field"><label for="qVat">IVA de la cotización</label><select id="qVat" onchange="calcQuote()"><option value="0">0%</option><option value="15">15%</option></select></div><div class="totals"><div class="line"><span>Subtotal</span><b id="qSubtotal" class="money">$0.00</b></div><div class="line"><span id="qVatLabel">IVA (0%)</span><b id="qVatAmount" class="money">$0.00</b></div><div class="line grand"><span>Total</span><b id="qTotal" class="money">$0.00</b></div></div>
-        <button class="btn primary" style="width:100%;margin-top:12px" onclick="saveQuote()">Guardar cotización</button>
+        <div id="qEditNotice" hidden><b>Modificando <span id="qEditNumber"></span></b><p>Conserva su número. Al guardar vuelve a Borrador para revisión.</p><button class="btn ghost" onclick="cancelQuoteEdit()">Cancelar edición</button></div><div id="qPending" hidden><p>Hay una cotización pendiente de confirmar. Reintentar conserva su identificador y evita crear otra.</p><button class="btn secondary" onclick="retryQuote()">Reintentar guardado</button><button class="btn ghost" onclick="discardPendingQuoteEdit()">Descartar edición pendiente y recargar</button></div><button id="qSaveButton" class="btn primary" style="width:100%;margin-top:12px" onclick="saveQuote()">Guardar cotización</button>
       </div>
       <div class="section-title"><h2>Historial de cotizaciones</h2></div>
-      <div id="quoteList" class="list"></div>
+      <p>La siguiente numeración parte de COT-00006 y se confirma al guardar en Supabase. Si ya existe un número posterior, continúa desde ese número.</p><button class="btn ghost" onclick="recoverOldQuotes()">Recuperar cotizaciones locales anteriores</button><div id="quoteList" class="list"></div>
     </section>
 
     <section id="billing" class="screen">
@@ -605,8 +605,8 @@ function serviceToDb(s){return clean({id:s.id,client_id:s.clientId,service_date:
 function serviceFromDb(s){return {id:s.id,clientId:s.client_id,date:s.service_date,type:s.service_type||"",areas:s.areas||"",pests:s.pests||[],products:s.products||[],otherProduct:s.other_product||"",notes:s.notes||"",photos:s.photos||[],activity:s.activity||[],technicianName:s.technician_name||"",technicianSignature:s.technician_signature||"",receivedBy:s.received_by||"",receivedByRole:s.received_by_role||"",clientSignature:s.client_signature||"",supervisorName:s.supervisor_name||"",supervisorSignature:s.supervisor_signature||"",supervisorSignedAt:s.supervisor_signed_at||null,certificateSignedAt:s.certificate_signed_at||"",createdBy:s.created_by||null}}
 function inspectionToDb(x){return {id:x.id,client_id:x.clientId,inspection_date:x.date,address:x.address||null,installation_type:x.type||null,contact:x.contact||null,notes:x.notes||null,pests:x.pests||[],created_by:x.createdBy||null}}
 function inspectionFromDb(x){return {id:x.id,clientId:x.client_id,date:x.inspection_date,address:x.address||"",type:x.installation_type||"",contact:x.contact||"",notes:x.notes||"",pests:x.pests||[]}}
-function quoteToDb(q){return {id:q.id,client_id:q.clientId,number:q.number,quote_date:q.date,validity_days:q.validity||15,notes:q.notes||null,items:q.items||[],subtotal:Number(q.subtotal??q.total??0),vat_rate:Number(q.vatRate||0),vat:Number(q.vat||0),total:Number(q.total||0),status:q.status||"Pendiente",client_decision_at:q.clientDecisionAt||null}}
-function quoteFromDb(q){return {id:q.id,clientId:q.client_id,number:q.number,date:q.quote_date,validity:q.validity_days,notes:q.notes||"",items:q.items||[],subtotal:Number(q.subtotal??q.total??0),vatRate:Number(q.vat_rate||0),vat:Number(q.vat||0),total:Number(q.total||0),status:q.status||"Pendiente",clientDecisionAt:q.client_decision_at||""}}
+function quoteToDb(q){return {id:q.id,client_id:q.clientId,number:q.number,quote_date:q.date,validity_days:q.validity||15,notes:q.notes||null,items:q.items||[],subtotal:Number(q.subtotal??q.total??0),vat_rate:Number(q.vatRate||0),vat:Number(q.vat||0),total:Number(q.total||0),status:q.status||"Pendiente",client_decision_at:q.clientDecisionAt||null,quote_details:q.details||{}}}
+function quoteFromDb(q){return {id:q.id,clientId:q.client_id,number:q.number,date:q.quote_date,validity:q.validity_days,notes:q.notes||"",items:q.items||[],subtotal:Number(q.subtotal??q.total??0),vatRate:Number(q.vat_rate||0),vat:Number(q.vat||0),total:Number(q.total||0),status:q.status||"Pendiente",clientDecisionAt:q.client_decision_at||"",details:q.quote_details||{},editVersion:Number(q.edit_version||0)}}
 function invoiceToDb(f){return {id:f.id,client_id:f.clientId,number:f.number,invoice_date:f.date,items:f.items||[],subtotal:Number(f.subtotal||0),vat_rate:Number(f.vatRate||0),vat:Number(f.vat||0),total:Number(f.total||0),status:f.status||"Borrador",access_key:f.accessKey||null}}
 function invoiceFromDb(f){return {id:f.id,clientId:f.client_id,number:f.number,date:f.invoice_date,items:f.items||[],subtotal:Number(f.subtotal||0),vatRate:Number(f.vat_rate||0),vat:Number(f.vat||0),total:Number(f.total||0),status:f.status||"Borrador",accessKey:f.access_key||""}}
 function stationToDb(x){return {id:x.id,client_id:x.clientId,code:x.code,x:Number(x.x||0),y:Number(x.y||0),status:x.status||"Operativa",last_check:x.lastCheck||null,notes:packStationNotes(x)}}
@@ -618,10 +618,11 @@ function requestFromDb(x){return {id:x.id,clientId:x.client_id,userId:x.user_id,
 
 async function qTable(table){const {data,error}=await sb.from(table).select('*');if(error){console.warn(table,error.message);return []}return data||[]}
 async function loadCloudState(){
-  const [clients,inspections,services,quotes,invoices,stations,maps,requests,profiles]=await Promise.all([qTable('clients'),qTable('inspections'),qTable('services'),qTable('quotes'),qTable('invoices'),qTable('stations'),qTable('station_maps'),qTable('requests'),qTable('profiles')]);
+  quoteBackupBeforeLoad();
+  const [clients,inspections,services,quotes,invoices,stations,maps,requests,profiles]=await Promise.all([qTable('clients'),qTable('inspections'),qTable('services'),readQuotesCloud(),qTable('invoices'),qTable('stations'),qTable('station_maps'),qTable('requests'),qTable('profiles')]);
   const d={
     clients:clients.map(c=>({id:c.id,name:c.name,doc:c.doc||"",phone:c.phone||"",address:c.address||"",email:c.email||"",latitude:c.latitude??null,longitude:c.longitude??null,active:c.active!==false})),
-    inspections:inspections.map(inspectionFromDb),services:services.map(serviceFromDb),quotes:quotes.map(quoteFromDb),invoices:invoices.map(invoiceFromDb),stations:stations.map(stationFromDb),stationMaps:maps.map(mapFromDb),requests:requests.map(requestFromDb),
+    inspections:inspections.map(inspectionFromDb),services:services.map(serviceFromDb),quotes:quoteMergeBackup(quotes.map(quoteFromDb)),invoices:invoices.map(invoiceFromDb),stations:stations.map(stationFromDb),stationMaps:maps.map(mapFromDb),requests:requests.map(requestFromDb),
     users:profiles.map(p=>({id:p.user_id,name:p.full_name||"Usuario",username:p.email||"",role:p.role,clientId:p.client_id||null,active:p.active!==false}))
   };
   localStorage.setItem('rokelux_data',JSON.stringify(d));cloudReady=true;renderAll();return d;
@@ -636,7 +637,7 @@ async function syncCloudState(d){
     const admin=isAdmin(),tech=isTech();
     if(admin)await syncCollection('clients',d.clients.map(c=>({id:c.id,name:c.name,doc:c.doc||null,phone:c.phone||null,address:c.address||null,email:c.email||null,latitude:c.latitude??null,longitude:c.longitude??null,active:c.active!==false})),true);
     if(admin||tech){await syncCollection('inspections',d.inspections.map(inspectionToDb),admin);await syncCollection('stations',d.stations.map(stationToDb),admin);await syncCollection('station_maps',d.stationMaps.map(mapToDb),admin)}
-    if(admin){await syncCollection('quotes',d.quotes.map(quoteToDb),true);await syncCollection('invoices',d.invoices.map(invoiceToDb),true)}
+    if(admin){await syncCollection('invoices',d.invoices.map(invoiceToDb),true)}
     if(isClient())await syncCollection('requests',d.requests.map(requestToDb),false);
   }finally{cloudSyncBusy=false}
 }
@@ -1148,16 +1149,134 @@ function calcInvoice(){
   if($("fVatAmount"))$("fVatAmount").textContent=money(vat);
   if($("fTotal"))$("fTotal").textContent=money(total);
 }
-function saveQuote(){if(!isAdmin())return alert("Solo el perfil administrativo puede crear cotizaciones.");
-  const d=state(),clientId=$("qClient").value,items=getDocItems("qItems"); if(!clientId)return alert("Selecciona un cliente."); if(!items.length)return alert("Agrega al menos un ítem.");
-  const amounts=quoteAmounts(items,$("qVat").value);
-  d.quotes.push({id:crypto.randomUUID(),number:"COT-"+String(d.quotes.length+1).padStart(5,"0"),clientId,date:$("qDate").value,validity:Number($("qValidity").value||15),notes:$("qNotes").value,items,...amounts,status:"Borrador"});
-  save(d);$("qItems").innerHTML="";addQuoteItem();$("qNotes").value="";alert("Cotización guardada.");renderQuotes();
+let quoteSaving=false,quoteEditing=null;
+function quoteStorageKey(kind){return 'rokelux_quotes_'+kind+'_'+sessionUser.id;}
+function quoteBackupBeforeLoad(){
+ if(!isAdmin())return;
+ const key=quoteStorageKey('backup'),old=JSON.parse(localStorage.getItem(key)||'[]');
+ const merged=new Map(old.map(q=>[q.id,q]));for(const q of state().quotes)merged.set(q.id,q);
+ localStorage.setItem(key,JSON.stringify([...merged.values()]));
 }
+function quoteMergeBackup(cloud){
+ if(!isAdmin())return cloud;
+ const ids=new Set(cloud.map(q=>q.id));
+ const backup=JSON.parse(localStorage.getItem(quoteStorageKey('backup'))||'[]');
+ return [...cloud,...backup.filter(q=>!ids.has(q.id)).map(q=>({...q,localOnly:true}))];
+}
+async function readQuotesCloud(){
+ const {data,error}=await sb.from('quotes').select('*').order('number');
+ if(error)throw Error('No se pudieron cargar las cotizaciones; se conserva el respaldo local: '+error.message);
+ return data||[];
+}
+function quoteCustom(id){const input=$(id+'Manual');input.hidden=$(id).value!=='__manual';if(!input.hidden)input.focus();}
+function quoteField(id){return $(id).value==='__manual'?$(id+'Manual').value.trim():$(id).value;}
+function quotePhoneFromClient(){const client=state().clients.find(c=>c.id===$('qClient').value);$('qPhone').value=client?.phone||'';}
+function quoteCache(row){
+ const q=quoteFromDb(row),d=state(),i=d.quotes.findIndex(x=>x.id===q.id);
+ if(i<0)d.quotes.push(q);else d.quotes[i]=q;
+ localStorage.setItem('rokelux_data',JSON.stringify(d));quoteBackupBeforeLoad();renderAll();return q;
+}
+function quoteHeaderOptions(){
+ const select=$('qCpc');if(!select)return;const old=select.value;
+ const values=[...new Set(state().quotes.map(q=>q.details?.cpc).filter(Boolean))];
+ select.innerHTML='<option value="">Seleccionar CPC guardado…</option>'+values.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('')+'<option value="__manual">Escribir manualmente…</option>';
+ if([...select.options].some(o=>o.value===old))select.value=old;else select.value='__manual';
+ $('qCpcManual').hidden=select.value!=='__manual';
+ $('qPending').hidden=!isAdmin()||!localStorage.getItem(quoteStorageKey('pending'));
+}
+function quotePayload(){
+ const client=state().clients.find(c=>c.id===$('qClient').value),items=getDocItems('qItems');
+ if(!client)throw Error('Selecciona un cliente.');
+ if(!items.length||items.some(x=>!Number.isFinite(x.qty)||!Number.isFinite(x.price)||x.qty<=0||x.price<0))throw Error('Revisa los ítems y sus importes.');
+ const details={offerValidity:quoteField('qOffer'),payment:quoteField('qPayment'),execution:quoteField('qExecution'),phone:$('qPhone').value.trim(),cpc:quoteField('qCpc'),signerName:$('qSigner').value.trim(),signerRole:$('qSignerRole').value.trim(),clientName:client.name,clientDoc:client.doc||'',clientAddress:client.address||''};
+ if(!details.offerValidity||!details.payment||!details.execution)throw Error('Completa vigencia, forma de pago y plazo de ejecución.');
+ const dayMatch=details.offerValidity.match(/^(\d+)\s*d[ií]as?$/i),validity=dayMatch?Number(dayMatch[1]):15;
+ return {client_id:client.id,quote_date:$('qDate').value,validity_days:validity,notes:$('qNotes').value,items,vat_rate:Number($('qVat').value),quote_details:details};
+}
+async function finishQuoteRequest(request){
+ const {data,error}=request.mode==='edit'
+  ?await sb.rpc('rokelux_edit_quote',{quote_id:request.quoteId,request_id:request.id,expected_version:request.version,expected_status:request.status,payload:request.payload})
+  :await sb.rpc('rokelux_save_quote',{request_id:request.id,payload:request.payload,restore_old:false});
+ if(error)throw error;
+ const q=quoteCache(data);
+ localStorage.removeItem(quoteStorageKey('pending'));
+ quoteEditing=null;$('qEditNotice').hidden=true;$('qSaveButton').textContent='Guardar cotización';
+ $('qItems').innerHTML='';addQuoteItem();$('qNotes').value='';calcQuote();quoteHeaderOptions();
+ alert(q.number+' guardada y confirmada en Supabase. Puedes consultarla en Historial de cotizaciones.');
+}
+async function saveQuote(){
+ if(!isAdmin()||quoteSaving)return;
+ if(localStorage.getItem(quoteStorageKey('pending')))return alert('Hay un guardado pendiente. Usa Reintentar guardado antes de crear otra cotización.');
+ try{
+  const payload=quotePayload();if(!payload.quote_date)throw Error('Selecciona la fecha.');
+  if(quoteEditing&&!confirm('Se actualizará '+quoteEditing.number+' sin crear otro número. Quedará en Borrador para una nueva revisión. ¿Guardar cambios?'))return;
+  const request={id:crypto.randomUUID(),payload,...(quoteEditing?{mode:'edit',quoteId:quoteEditing.id,version:quoteEditing.editVersion||0,status:quoteEditing.status}:{mode:'create'})};
+  // Persist request before network: a retry uses the same id, even after a reload.
+  localStorage.setItem(quoteStorageKey('pending'),JSON.stringify(request));
+  quoteSaving=true;$('qSaveButton').disabled=true;quoteHeaderOptions();await finishQuoteRequest(request);
+ }catch(e){alert('No se confirmó el guardado: '+e.message+'. No vuelvas a crearla; usa Reintentar guardado si aparece.');}
+ finally{quoteSaving=false;$('qSaveButton').disabled=false;}
+}
+function setQuoteField(id,value){
+ const select=$(id),found=[...select.options].find(o=>o.value===value);
+ select.value=found?value:'__manual';$(id+'Manual').value=found?'':value;$(id+'Manual').hidden=!!found;
+}
+async function editQuote(id){
+ if(!isAdmin()||quoteSaving)return;
+ if(localStorage.getItem(quoteStorageKey('pending')))return alert('Resuelve el guardado pendiente antes de modificar otra cotización.');
+ if(state().quotes.find(q=>q.id===id)?.localOnly)return alert('Primero usa Recuperar cotizaciones locales anteriores.');
+ quoteSaving=true;
+ try{
+  const {data,error}=await sb.from('quotes').select('*').eq('id',id).single();if(error)throw error;
+  const q=quoteCache(data);quoteEditing=q;const details=q.details||{};
+  $('qClient').value=q.clientId;$('qDate').value=q.date;$('qNotes').value=q.notes||'';$('qVat').value=String(q.vatRate||0);
+  setQuoteField('qOffer',details.offerValidity||q.validity+' días');setQuoteField('qPayment',details.payment||'');setQuoteField('qExecution',details.execution||'');setQuoteField('qCpc',details.cpc||'');
+  $('qPhone').value=details.phone??state().clients.find(c=>c.id===q.clientId)?.phone??'';
+  $('qSigner').value=details.signerName||'';$('qSignerRole').value=details.signerRole||'';
+  $('qItems').innerHTML='';q.items.forEach(addQuoteItem);calcQuote();
+  $('qEditNotice').hidden=false;$('qEditNumber').textContent=q.number;$('qSaveButton').textContent='Guardar cambios';window.scrollTo({top:0,behavior:'smooth'});
+ }catch(e){alert('No se pudo abrir la cotización: '+e.message);}finally{quoteSaving=false;}
+}
+function cancelQuoteEdit(){
+ if(quoteSaving)return;
+ if(localStorage.getItem(quoteStorageKey('pending')))return alert('Primero resuelve o descarta el intento pendiente.');
+ if(!confirm('¿Salir de la edición y descartar los cambios del formulario?'))return;
+ quoteEditing=null;$('qEditNotice').hidden=true;$('qSaveButton').textContent='Guardar cotización';$('qClient').value='';$('qNotes').value='';$('qItems').innerHTML='';addQuoteItem();calcQuote();
+}
+async function discardPendingQuoteEdit(){
+ if(!isAdmin()||quoteSaving)return;const raw=localStorage.getItem(quoteStorageKey('pending'));if(!raw)return;
+ const req=JSON.parse(raw);if(req.mode!=='edit')return alert('Para una cotización nueva, usa Reintentar guardado para comprobar si ya se creó.');
+ if(!confirm('Se conservará un respaldo del intento. Después se abrirá la versión actual de la nube. ¿Continuar?'))return;
+ localStorage.setItem(quoteStorageKey('discarded_'+req.id),raw);localStorage.removeItem(quoteStorageKey('pending'));await editQuote(req.quoteId);quoteHeaderOptions();
+}
+async function retryQuote(){
+ if(!isAdmin()||quoteSaving)return;const raw=localStorage.getItem(quoteStorageKey('pending'));if(!raw)return;
+ quoteSaving=true;$('qSaveButton').disabled=true;
+ try{await finishQuoteRequest(JSON.parse(raw));}catch(e){alert('Sigue pendiente: '+e.message);}finally{quoteSaving=false;$('qSaveButton').disabled=false;}
+}
+async function recoverOldQuotes(){
+ if(!isAdmin()||quoteSaving)return;
+ if(!confirm('Se intentarán guardar las cotizaciones locales COT-00001 a COT-00005 con sus números e identificadores originales. No se sobrescribirán registros existentes. ¿Continuar?'))return;
+ quoteSaving=true;
+ try{
+  quoteBackupBeforeLoad();const cloud=await readQuotesCloud(),ids=new Set(cloud.map(q=>q.id));
+  const old=JSON.parse(localStorage.getItem(quoteStorageKey('backup'))||'[]').filter(q=>!ids.has(q.id));
+  let saved=0;const failures=[];
+  for(const q of old){try{
+   if(!/^COT-0000[1-5]$/.test(q.number))throw Error('Fuera del rango de recuperación 00001 a 00005');
+   const {data,error}=await sb.rpc('rokelux_save_quote',{request_id:q.id,payload:quoteToDb(q),restore_old:true});if(error)throw error;
+   quoteCache(data);saved++;
+  }catch(e){failures.push(q.number+': '+e.message);}}
+  const d=state();d.quotes=quoteMergeBackup((await readQuotesCloud()).map(quoteFromDb));localStorage.setItem('rokelux_data',JSON.stringify(d));renderAll();
+  alert('Recuperadas: '+saved+'.'+(failures.length?'\nPendientes:\n'+failures.join('\n'):' No hay conflictos.'));
+ }catch(e){alert(e.message);}finally{quoteSaving=false;}
+}
+
 function quoteStatusClass(s){return String(s||"").toLowerCase()}
 function renderQuotes(){
+  if(isAdmin())quoteHeaderOptions();
   const d=state(),el=$("quoteList");if(!el)return;
-  el.innerHTML=d.quotes.length?[...d.quotes].reverse().map(q=>`<div class="item"><div class="avatar">💵</div><div class="meta"><b>${esc(q.number)} · ${esc(clientName(q.clientId))}</b><small>${fmt(q.date)} · ${money(q.total)} · ${esc(q.status)}</small></div><button class="btn ghost" onclick="printQuote('${q.id}')">PDF</button><button class="btn primary" onclick="quoteToInvoice('${q.id}')">Facturar</button></div>`).join(""):`<div class="empty">No hay cotizaciones.</div>`;
+  el.innerHTML=d.quotes.length?[...d.quotes].reverse().map(q=>`<div class="item"><div class="avatar">💵</div><div class="meta"><b>${esc(q.number)} · ${esc(clientName(q.clientId))}</b><small>${fmt(q.date)} · ${money(q.total)} · ${esc(q.status)}${q.localOnly?" · Solo en este dispositivo; pendiente de recuperar":""}</small></div><button class="btn ghost" onclick="printQuote('${q.id}')">PDF</button><button class="btn secondary" onclick="editQuote('${q.id}')">Modificar</button><button class="btn primary" onclick="quoteToInvoice('${q.id}')">Facturar</button></div>`).join(""):`<div class="empty">No hay cotizaciones.</div>`;
 }
 
 function docLogoUrl(){return new URL("logo.png",location.href).href}
@@ -1195,15 +1314,15 @@ function docHeader(title,subtitle=""){
 }
 
 function printQuote(id){
-  const d=state(),q=d.quotes.find(x=>x.id===id),cl=d.clients.find(x=>x.id===q.clientId)||{};
+  const d=state(),q=d.quotes.find(x=>x.id===id);if(!q||(isClient()&&q.clientId!==currentClientId()))return alert('Cotización no disponible.');const details=q.details||{},live=d.clients.find(x=>x.id===q.clientId)||{},cl={name:details.clientName??live.name,doc:details.clientDoc??live.doc,address:details.clientAddress??live.address};
   const rows=q.items.map(x=>`<tr><td>${esc(x.description)}</td><td>${x.qty}</td><td>${money(x.price)}</td><td>${money(x.qty*x.price)}</td></tr>`).join("");
-  const h=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(q.number)}</title><style>${docBaseCss()}</style></head><body><div class="page">
+  const h=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(q.number)}</title><style>${docBaseCss(".footer{position:static;margin-top:12mm}.meta-grid>div{overflow-wrap:anywhere}.section.avoid{break-inside:auto}tr{break-inside:avoid}")}</style></head><body><div class="page">
   ${docHeader(`COTIZACIÓN ${esc(q.number)}`,"Propuesta comercial ROKELUX")}
-  <div class="card"><div class="meta-grid"><div><b>Cliente:</b> ${esc(cl.name||"")}</div><div><b>RUC/C.I.:</b> ${esc(cl.doc||"")}</div><div><b>Dirección:</b> ${esc(cl.address||"")}</div><div><b>Fecha:</b> ${fmt(q.date)}</div><div><b>Validez:</b> ${q.validity} días</div><div><b>Estado:</b> ${esc(q.status||"Pendiente")}</div></div></div>
+  <div class="card"><div class="meta-grid"><div><b>Cliente:</b> ${esc(cl.name||"")}</div><div><b>RUC/C.I.:</b> ${esc(cl.doc||"")}</div><div><b>Dirección:</b> ${esc(cl.address||"")}</div><div><b>Fecha:</b> ${fmt(q.date)}</div><div><b>Vigencia de la Oferta:</b> ${esc(details.offerValidity||q.validity+" días")}</div><div><b>Forma de Pago:</b> ${esc(details.payment||"—")}</div><div><b>Teléfono:</b> ${esc(details.phone||live.phone||"—")}</div><div><b>CPC:</b> ${esc(details.cpc||"—")}</div><div><b>Plazo de ejecución:</b> ${esc(details.execution||"—")}</div><div><b>Estado:</b> ${esc(q.status||"Pendiente")}</div></div></div>
   <div class="section avoid"><h2>Detalle de servicios</h2><table><tr><th>Descripción</th><th>Cant.</th><th>P. unit.</th><th>Total</th></tr>${rows}</table></div>
   ${q.notes?`<div class="card analysis"><h3>Alcance / observaciones</h3><div style="font-size:10px;line-height:1.5">${esc(q.notes)}</div></div>`:""}
   <div class="totalbox"><div><span>Subtotal</span><b>${money(q.subtotal??q.total)}</b></div><div><span>IVA (${Number(q.vatRate||0)}%)</span><b>${money(q.vat||0)}</b></div><div class="grand"><span>TOTAL</span><span>${money(q.total)}</span></div></div>
-  <div class="footer"><span>ROKELUX · Protegemos lo que más importa.</span><span>Cotización ${esc(q.number)}</span></div>
+  <div class="avoid" style="margin-top:18mm;min-height:30mm;width:85mm;padding-top:16mm"><div style="border-top:1px solid #555;padding-top:6px"><b>${esc(details.signerName||"Firma autorizada")}</b><br>${esc(details.signerRole||"ROKELUX")}</div></div><div class="footer"><span>ROKELUX · Protegemos lo que más importa.</span><span>Cotización ${esc(q.number)}</span></div>
   </div><script>window.onload=()=>window.print()<\/script></body></html>`;
   const w=window.open("","_blank");w.document.write(h);w.document.close();
 }
