@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
+<meta name="rokelux-build" content="2026-10-07-indexeddb-cache">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -594,18 +595,71 @@ async function saveStationReview(){
   finally{btn.disabled=false;}
 }
 
-// Keep cloud data available even when the browser cannot persist its cache.
-let rokeluxMemoryData=null;
+// Large photos/signatures belong in IndexedDB, not the small localStorage area.
+let rokeluxMemoryData=null,rokeluxCacheDb=null,rokeluxCacheQueue=Promise.resolve(),rokeluxCachePending=0;
 function quotaError(e){return e?.name==='QuotaExceededError'||e?.code===22||e?.code===1014;}
-function showStorageNotice(){
- let box=document.getElementById('storageQuotaNotice');
- if(!box){box=document.createElement('div');box.id='storageQuotaNotice';box.setAttribute('role','status');box.style.cssText='position:fixed;bottom:76px;left:12px;right:12px;z-index:99999;background:#fff3cd;color:#332700;padding:12px;border:1px solid #997000;border-radius:8px;font-size:14px';box.textContent='El navegador no tiene espacio para guardar una copia local. Los datos cargados siguen disponibles mientras esta página esté abierta. Antes de cerrar, confirma tus cambios en la nube o exporta un respaldo en Configuración.';document.body.appendChild(box);}
+function showStorageNotice(kind='cache'){
+ const id=kind==='cache'?'storageQuotaNotice':'quoteStorageNotice';
+ if(document.getElementById(id))return;
+ const box=document.createElement('div');box.id=id;box.setAttribute('role','status');
+ box.style.cssText='position:fixed;bottom:76px;left:12px;right:12px;z-index:99999;background:#fff3cd;color:#332700;padding:12px;border:1px solid #997000;border-radius:8px;font-size:14px';
+ box.textContent='No se pudo guardar la copia de respaldo en este dispositivo. Mantén la app abierta hasta confirmar tus cambios en la nube, o exporta un respaldo en Configuración.';
+ document.body.appendChild(box);
 }
-function readAppData(){return rokeluxMemoryData??localStorage.getItem('rokelux_data');}
+function openAppCache(){
+ if(rokeluxCacheDb)return rokeluxCacheDb;
+ rokeluxCacheDb=new Promise((resolve,reject)=>{
+  const req=indexedDB.open('rokelux-cache',1);
+  req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('snapshots'))req.result.createObjectStore('snapshots');};
+  req.onerror=()=>reject(req.error);
+  req.onblocked=()=>reject(new Error('Local cache blocked'));
+  req.onsuccess=()=>{const db=req.result;db.onversionchange=()=>{db.close();rokeluxCacheDb=null;};resolve(db);};
+ }).catch(e=>{rokeluxCacheDb=null;throw e;});
+ return rokeluxCacheDb;
+}
+async function cacheTransaction(mode,action){
+ const db=await openAppCache();
+ return new Promise((resolve,reject)=>{
+  const tx=db.transaction('snapshots',mode),req=action(tx.objectStore('snapshots'));
+  tx.oncomplete=()=>resolve(req.result);tx.onerror=()=>reject(tx.error||req.error);tx.onabort=()=>reject(tx.error||new Error('Local cache aborted'));
+ });
+}
+function readAppData(){
+ if(rokeluxMemoryData!==null)return rokeluxMemoryData;
+ try{return localStorage.getItem('rokelux_data');}catch(_){return null;}
+}
 function writeAppData(value){
- try{localStorage.setItem('rokelux_data',value);rokeluxMemoryData=value;}
- catch(e){if(!quotaError(e))throw e;rokeluxMemoryData=value;showStorageNotice();}
+ rokeluxMemoryData=value;rokeluxCachePending++;
+ // Serialize commits; a slower earlier snapshot must never overwrite a newer one.
+ const task=rokeluxCacheQueue.then(async()=>{
+  let legacy=null;try{legacy=localStorage.getItem('rokelux_data');}catch(_){}
+  try{
+   await cacheTransaction('readwrite',store=>store.put(value,'app'));
+   // Only release the old large slot after the replacement transaction commits.
+   try{if(legacy!==null&&localStorage.getItem('rokelux_data')===legacy)localStorage.removeItem('rokelux_data');}catch(_){}
+   document.getElementById('storageQuotaNotice')?.remove();return true;
+  }catch(_){
+   try{localStorage.setItem('rokelux_data',value);document.getElementById('storageQuotaNotice')?.remove();return true;}
+   catch(_){showStorageNotice();return false;}
+  }finally{rokeluxCachePending--;}
+ });
+ rokeluxCacheQueue=task.catch(()=>false);return task;
 }
+async function initializeAppCache(){
+ let legacy=null;try{legacy=localStorage.getItem('rokelux_data');}catch(_){}
+ // Legacy data can contain edits made by an older open version. Preserve it first.
+ if(legacy!==null){rokeluxMemoryData=legacy;await writeAppData(legacy);return;}
+ try{rokeluxMemoryData=(await cacheTransaction('readonly',store=>store.get('app')))??null;}
+ catch(_){/* Cloud loading can still proceed when local persistence is unavailable. */}
+}
+async function clearAppCache(){
+ await rokeluxCacheQueue;
+ await cacheTransaction('readwrite',store=>store.delete('app'));
+ localStorage.removeItem('rokelux_data');rokeluxMemoryData=null;
+}
+window.addEventListener('beforeunload',event=>{
+ if(rokeluxCachePending){event.preventDefault();event.returnValue='';}
+});
 
 const state=()=>{
   const d=JSON.parse(readAppData()||'{}');
@@ -1144,7 +1198,7 @@ function renderHome(){const d=state();$("stClients").textContent=d.clients.lengt
 function renderCalendar(){const d=state(),now=new Date(),year=now.getFullYear(),month=now.getMonth();$("monthLabel").textContent=now.toLocaleDateString("es-EC",{month:"long",year:"numeric"});const first=new Date(year,month,1).getDay(),days=new Date(year,month+1,0).getDate();let html="";for(let i=0;i<first;i++)html+='<div></div>';for(let day=1;day<=days;day++){const ds=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`,has=d.services.some(s=>s.date===ds),today=day===now.getDate();html+=`<div class="calday ${has?"has":""} ${today?"today":""}">${day}</div>`}$("calendarGrid").innerHTML=html;const arr=d.services.filter(s=>{const dt=new Date(s.date+"T12:00");return dt.getFullYear()===year&&dt.getMonth()===month});$("calendarServices").innerHTML=arr.length?arr.map(s=>`<div class="item"><div class="avatar">🛠</div><div class="meta"><b>${esc(clientName(s.clientId))}</b><small>${fmt(s.date)} · ${esc(s.type)}</small></div></div>`).join(""):`<div class="empty">Sin servicios este mes.</div>`}
 function exportData(){const blob=new Blob([JSON.stringify(state(),null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="ROKELUX_respaldo.json";a.click();URL.revokeObjectURL(a.href)}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{JSON.parse(r.result);writeAppData(r.result);renderAll();alert("Respaldo importado.")}catch{alert("Archivo no válido.")}};r.readAsText(f)}
-function resetApp(){if(confirm("¿Borrar todos los datos guardados en este dispositivo?")){localStorage.removeItem("rokelux_data");location.reload()}}
+async function resetApp(){if(confirm("¿Borrar todos los datos guardados en este dispositivo?")){try{await clearAppCache();location.reload()}catch(_){alert("No se pudo borrar la copia local. Inténtalo de nuevo.")}}}
 function fmt(d){if(!d)return"";return new Date(d+"T12:00").toLocaleDateString("es-EC")}
 function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
 
@@ -1194,7 +1248,7 @@ function quoteBackupBeforeLoad(){
  if(!isAdmin())return;
  const key=quoteStorageKey('backup'),old=JSON.parse(localStorage.getItem(key)||'[]');
  const merged=new Map(old.map(q=>[q.id,q]));for(const q of state().quotes)merged.set(q.id,q);
- try{localStorage.setItem(key,JSON.stringify([...merged.values()]));}catch(e){if(!quotaError(e))throw e;showStorageNotice();}
+ try{localStorage.setItem(key,JSON.stringify([...merged.values()]));}catch(e){if(!quotaError(e))throw e;showStorageNotice("quotes");}
 }
 function quoteMergeBackup(cloud){
  if(!isAdmin())return cloud;
@@ -1696,6 +1750,7 @@ function printClientReport(){
 }
 function renderAll(){if(typeof Dispatch!=="undefined")Dispatch.render();renderHome();renderClients();renderSelects();renderHistory();renderCerts();renderCalendar();renderReportSelect();renderReport();renderBusinessSelects();renderQuotes();renderInvoices();renderServiceReports();renderStationMap();renderClientPortal();renderClientDocs();renderClientQuotes();renderClientInvoices();renderUsers();renderSignatureServiceSelect()}
 document.addEventListener("DOMContentLoaded",async()=>{
+  await initializeAppCache();
   makeChips("inspectionPests",pests,"ip");makeChips("servicePests",pests,"sp");makeChips("products",products,"pr");addQuoteItem();addInvoiceItem();
   const now=new Date(),t=now.toISOString().slice(0,10),from=new Date(now.getFullYear(),now.getMonth()-5,1).toISOString().slice(0,10);$("iDate").value=t;$("sDate").value=t;if($("qDate"))$("qDate").value=t;if($("fDate"))$("fDate").value=t;if($("rFrom"))$("rFrom").value=from;if($("rTo"))$("rTo").value=t;
   setupSignaturePad("sigTechCanvas","tech");setupSignaturePad("sigClientCanvas","client");setupSignaturePad("sigSupervisorCanvas","supervisor");
