@@ -267,6 +267,7 @@ input[hidden],div[hidden]{display:none!important}</style>
           <p id="sigSupervisorStatus" role="status">Firma pendiente</p>
           <button class="btn ghost" onclick="clearSignature('supervisor')">Borrar trazo</button>
           <button class="btn primary" onclick="saveSupervisorSignature()">Guardar firma del supervisor</button>
+          <div class="card" style="margin-top:16px"><h3>Envío de documentos al cliente</h3><p>Remitente: info@rokeluxec.com. El certificado se envía después de las firmas del técnico y del cliente. El informe también requiere la firma del supervisor.</p><div id="documentMailStatus" role="status" aria-live="polite"></div><button class="btn ghost" onclick="refreshDocumentMail()">Consultar estado</button><button class="btn ghost admin-only" onclick="retryDocumentMail()">Reintentar después de corregir</button></div>
           <button class="btn secondary" onclick="$('srService').value=$('sigService').value;printServiceReport()">Ver informe técnico</button>
         </div>
       </div>
@@ -593,12 +594,25 @@ async function saveStationReview(){
   finally{btn.disabled=false;}
 }
 
+// Keep cloud data available even when the browser cannot persist its cache.
+let rokeluxMemoryData=null;
+function quotaError(e){return e?.name==='QuotaExceededError'||e?.code===22||e?.code===1014;}
+function showStorageNotice(){
+ let box=document.getElementById('storageQuotaNotice');
+ if(!box){box=document.createElement('div');box.id='storageQuotaNotice';box.setAttribute('role','status');box.style.cssText='position:fixed;bottom:76px;left:12px;right:12px;z-index:99999;background:#fff3cd;color:#332700;padding:12px;border:1px solid #997000;border-radius:8px;font-size:14px';box.textContent='El navegador no tiene espacio para guardar una copia local. Los datos cargados siguen disponibles mientras esta página esté abierta. Antes de cerrar, confirma tus cambios en la nube o exporta un respaldo en Configuración.';document.body.appendChild(box);}
+}
+function readAppData(){return rokeluxMemoryData??localStorage.getItem('rokelux_data');}
+function writeAppData(value){
+ try{localStorage.setItem('rokelux_data',value);rokeluxMemoryData=value;}
+ catch(e){if(!quotaError(e))throw e;rokeluxMemoryData=value;showStorageNotice();}
+}
+
 const state=()=>{
-  const d=JSON.parse(localStorage.getItem("rokelux_data")||'{}');
+  const d=JSON.parse(readAppData()||'{}');
   return {clients:d.clients||[],inspections:d.inspections||[],services:d.services||[],quotes:d.quotes||[],invoices:d.invoices||[],stations:d.stations||[],stationMaps:d.stationMaps||[],users:d.users||[],requests:d.requests||[]};
 };
 let cloudSyncTimer=null,cloudSyncBusy=false,cloudReady=false;
-const save=d=>{localStorage.setItem("rokelux_data",JSON.stringify(d));renderAll();if(cloudReady){clearTimeout(cloudSyncTimer);cloudSyncTimer=setTimeout(()=>syncCloudState(d),220)}};
+const save=d=>{writeAppData(JSON.stringify(d));renderAll();if(cloudReady){clearTimeout(cloudSyncTimer);cloudSyncTimer=setTimeout(()=>syncCloudState(d),220)}};
 
 const clean=o=>Object.fromEntries(Object.entries(o).filter(([,v])=>v!==undefined));
 function serviceToDb(s){return clean({id:s.id,client_id:s.clientId,service_date:s.date,service_type:s.type,areas:s.areas,pests:s.pests||[],products:s.products||[],other_product:s.otherProduct||null,notes:s.notes||null,photos:s.photos||[],activity:s.activity||[],technician_name:s.technicianName||null,technician_signature:s.technicianSignature||null,received_by:s.receivedBy||null,received_by_role:s.receivedByRole||null,client_signature:s.clientSignature||null,certificate_signed_at:s.certificateSignedAt||null,created_by:s.createdBy||null})}
@@ -625,7 +639,7 @@ async function loadCloudState(){
     inspections:inspections.map(inspectionFromDb),services:services.map(serviceFromDb),quotes:quoteMergeBackup(quotes.map(quoteFromDb)),invoices:invoices.map(invoiceFromDb),stations:stations.map(stationFromDb),stationMaps:maps.map(mapFromDb),requests:requests.map(requestFromDb),
     users:profiles.map(p=>({id:p.user_id,name:p.full_name||"Usuario",username:p.email||"",role:p.role,clientId:p.client_id||null,active:p.active!==false}))
   };
-  localStorage.setItem('rokelux_data',JSON.stringify(d));cloudReady=true;renderAll();return d;
+  writeAppData(JSON.stringify(d));cloudReady=true;renderAll();return d;
 }
 async function syncCollection(table,rows,canDelete=false){
   const {error:upErr}=rows.length?await sb.from(table).upsert(rows,{onConflict:'id'}):{error:null};if(upErr){console.warn('sync',table,upErr.message);return}
@@ -659,7 +673,7 @@ async function login(){
   const email=$('loginUser').value.trim(),password=$('loginPass').value,btn=$('loginBtn'),status=$('loginStatus');if(!email||!password)return alert('Ingresa correo y contraseña.');
   btn.disabled=true;status.textContent='Verificando acceso…';
   try{const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;sessionUser=await fetchMyProfile(data.user);status.textContent='Cargando información…';await loadCloudState();$('loginOverlay').style.display='none';applyRole();renderAll();}
-  catch(err){await sb.auth.signOut();status.textContent='';alert('No se pudo ingresar: '+(err.message||err));}
+  catch(err){sessionUser=null;cloudReady=false;await sb.auth.signOut({scope:'local'});status.textContent='';alert('No se pudo ingresar: '+(err.message||err));}
   finally{btn.disabled=false}
 }
 async function restoreSession(){
@@ -667,9 +681,9 @@ async function restoreSession(){
   if(recoveryLinkError){recoveryMode=false;sessionStorage.removeItem('rokelux_recovery');showAuthPanel('forgot');$('resetStatus').textContent='El enlace no es válido o ha caducado. Solicita uno nuevo.';return;}
   if(recoveryMode){showRecovery();if(error||!data.session){$('recoveryStatus').textContent='El enlace no es válido o ha caducado. Solicita uno nuevo.';$('updatePasswordBtn').disabled=true;}return;}
   if(!data.session)return;
-  try{sessionUser=await fetchMyProfile(data.session.user);await loadCloudState();$('loginOverlay').style.display='none';applyRole();renderAll()}catch(e){await sb.auth.signOut();sessionUser=null}
+  try{sessionUser=await fetchMyProfile(data.session.user);await loadCloudState();$('loginOverlay').style.display='none';applyRole();renderAll()}catch(e){await sb.auth.signOut({scope:'local'});sessionUser=null;cloudReady=false;$('loginStatus').textContent='No se pudo cargar la información: '+(e.message||e)}
 }
-async function logout(){await Dispatch.endSession();sessionUser=null;cloudReady=false;await sb.auth.signOut();$('loginOverlay').style.display='grid';$('loginPass').value='';$('loginStatus').textContent='';window.scrollTo(0,0)}
+async function logout(){await Dispatch.endSession();sessionUser=null;cloudReady=false;await sb.auth.signOut({scope:'local'});$('loginOverlay').style.display='grid';$('loginPass').value='';$('loginStatus').textContent='';window.scrollTo(0,0)}
 function roleLabel(r){return r==="admin"?"Administrativo":r==="technician"?"Técnico":"Cliente"}
 function isAdmin(){return sessionUser?.role==="admin"}function isTech(){return sessionUser?.role==="technician"}function isClient(){return sessionUser?.role==="client"}
 function canEditTechnical(){return isAdmin()||isTech()}
@@ -916,7 +930,7 @@ let serviceWriteBusy=false,servicePendingId=null,servicePendingOwner=null;
 function cacheConfirmedService(row){
   const d=state(),service=serviceFromDb(row),index=d.services.findIndex(x=>x.id===service.id);
   if(index<0)d.services.push(service);else d.services[index]=service;
-  localStorage.setItem('rokelux_data',JSON.stringify(d));renderAll();
+  writeAppData(JSON.stringify(d));renderAll();
 }
 async function saveService(){
   if(!canEditTechnical())return alert('Tu perfil no puede registrar servicios.');
@@ -979,6 +993,7 @@ function loadCertificateSignatures(){
   $("sigServiceInfo").innerHTML=`<b>${esc(clientName(s.clientId))}</b><br>${fmt(s.date)} · ${esc(s.type)}<br>${esc(s.areas||"")}`;
   drawSavedSignature("tech",s.technicianSignature||"");drawSavedSignature("client",s.clientSignature||"");
   $("sigSupervisorName").value=s.supervisorName||"";drawSavedSignature("supervisor",s.supervisorSignature||"");
+  void refreshDocumentMail(id);
 }
 async function saveCertificateSignatures(){
   if(!canEditTechnical())return alert('Tu perfil no puede firmar certificados.');
@@ -995,7 +1010,8 @@ async function saveCertificateSignatures(){
     const {data,error}=await sb.from('services').update(patch).eq('id',id).select('*').single();
     if(error)throw error;
     cacheConfirmedService(data);
-    alert('Las dos firmas quedaron confirmadas en la nube. El certificado y el informe usan estas mismas firmas.');
+    alert('Las firmas quedaron confirmadas en la nube. El certificado se enviará al correo del cliente. Consulta el estado del envío abajo.');
+    void processDocumentMail(id);
   }catch(e){alert('No se pudieron confirmar las firmas: '+e.message+'. No cierres esta pantalla hasta guardarlas.');}
   finally{serviceWriteBusy=false;}
 }
@@ -1007,10 +1023,33 @@ async function saveSupervisorSignature(){
   try{
     const patch={supervisor_name:name,supervisor_signature:$('sigSupervisorCanvas').toDataURL('image/png'),supervisor_signed_at:new Date().toISOString()};
     const {data,error}=await sb.from('services').update(patch).eq('id',id).select('*').single();if(error)throw error;
-    cacheConfirmedService(data);alert('Firma del supervisor guardada para el informe técnico. El certificado conserva sus firmas.');
+    cacheConfirmedService(data);alert('Firma del supervisor guardada. Si el servicio tiene las firmas del técnico y del cliente, el informe se enviará automáticamente.');
+    void processDocumentMail(id);
   }catch(e){alert('No se pudo guardar la firma del supervisor: '+e.message);}
   finally{serviceWriteBusy=false;}
 }
+// Delivery status is read from the server. Signatures remain saved if mail fails.
+async function refreshDocumentMail(id=$('sigService')?.value){
+ const el=$('documentMailStatus');if(!el)return;if(!id){el.textContent='Selecciona un servicio para consultar sus envíos.';return;}
+ const {data,error}=await sb.rpc('rokelux_document_status',{p_service:id});
+ if(error){el.textContent='El seguimiento de correo todavía no está disponible. Las firmas guardadas se conservan.';return;}
+ const labels={pending:'En cola',processing:'Preparando envío',accepted:'Aceptado por el servicio de correo',blocked:'Requiere corrección',review:'Requiere revisión en Resend'};
+ el.innerHTML=data?.length?data.map(r=>`<div><b>${r.kind==='certificado'?'Certificado':'Informe técnico'}:</b> ${esc(labels[r.status]||r.status)}${r.recipient?' · '+esc(r.recipient):' · Falta correo del cliente'}${r.last_error?'<br><small>'+esc(r.last_error)+'</small>':''}</div>`).join(''):'No hay envíos registrados. Los documentos nuevos se enviarán al completar sus firmas. Los servicios firmados antes de activar esta función no se envían automáticamente.';
+}
+async function processDocumentMail(id){
+ const el=$('documentMailStatus');if(el)el.textContent='Consultando el envío de documentos…';
+ try{const {error}=await sb.functions.invoke('enviar-documentos',{body:{service_id:id}});if(error&&el)el.textContent='Firmas guardadas. El envío queda pendiente de la tarea automática del servidor.';}
+ catch(_e){if(el)el.textContent='Firmas guardadas. No se pudo consultar el envío; revisa su estado más tarde.';}
+ await refreshDocumentMail(id);
+}
+async function retryDocumentMail(){
+ if(!isAdmin())return alert('Solo administración puede corregir envíos.');
+ const id=$('sigService').value;if(!id)return;
+ const {error}=await sb.rpc('rokelux_retry_document',{p_service:id});
+ if(error)return alert('No se pudo preparar el reintento: '+error.message);
+ await processDocumentMail(id);
+}
+
 function printSelectedSignedCertificate(){const id=$("sigService").value;if(!id)return alert("Selecciona un servicio.");printCertificate(id)}
 
 function certificatePestsMarkup(values,artwork){
@@ -1025,7 +1064,7 @@ function certificatePestsMarkup(values,artwork){
 
 function printCertificate(id){
   const d=state(),s=d.services.find(x=>x.id===id);if(!s||(isClient()&&s.clientId!==currentClientId()))return alert('Servicio no disponible para este usuario.');const cst=d.clients.find(x=>x.id===s.clientId)||{};
-  const certNo="RX-"+(s.date||"").replaceAll("-","")+"-"+String(d.services.indexOf(s)+1).padStart(3,"0");
+  const certNo="RX-"+s.id.slice(0,8).toUpperCase();
 
   // Coordenadas calibradas directamente sobre la plantilla 1086 × 1448 px.
   // La hoja visual conserva proporción 3:4 dentro de una página A4, evitando
@@ -1104,7 +1143,7 @@ function printCertificate(id){
 function renderHome(){const d=state();$("stClients").textContent=d.clients.length;$("stServices").textContent=d.services.length;$("stPending").textContent=d.inspections.length;$("stCerts").textContent=d.services.length;const upcoming=[...d.services].sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);$("nextServices").innerHTML=upcoming.length?upcoming.map(s=>`<div class="item"><div class="avatar">🗓️</div><div class="meta"><b>${esc(clientName(s.clientId))}</b><small>${esc(s.type)} · ${fmt(s.date)}</small></div><span>›</span></div>`).join(""):`<div class="empty">No hay servicios programados.</div>`}
 function renderCalendar(){const d=state(),now=new Date(),year=now.getFullYear(),month=now.getMonth();$("monthLabel").textContent=now.toLocaleDateString("es-EC",{month:"long",year:"numeric"});const first=new Date(year,month,1).getDay(),days=new Date(year,month+1,0).getDate();let html="";for(let i=0;i<first;i++)html+='<div></div>';for(let day=1;day<=days;day++){const ds=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`,has=d.services.some(s=>s.date===ds),today=day===now.getDate();html+=`<div class="calday ${has?"has":""} ${today?"today":""}">${day}</div>`}$("calendarGrid").innerHTML=html;const arr=d.services.filter(s=>{const dt=new Date(s.date+"T12:00");return dt.getFullYear()===year&&dt.getMonth()===month});$("calendarServices").innerHTML=arr.length?arr.map(s=>`<div class="item"><div class="avatar">🛠</div><div class="meta"><b>${esc(clientName(s.clientId))}</b><small>${fmt(s.date)} · ${esc(s.type)}</small></div></div>`).join(""):`<div class="empty">Sin servicios este mes.</div>`}
 function exportData(){const blob=new Blob([JSON.stringify(state(),null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="ROKELUX_respaldo.json";a.click();URL.revokeObjectURL(a.href)}
-function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{JSON.parse(r.result);localStorage.setItem("rokelux_data",r.result);renderAll();alert("Respaldo importado.")}catch{alert("Archivo no válido.")}};r.readAsText(f)}
+function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{JSON.parse(r.result);writeAppData(r.result);renderAll();alert("Respaldo importado.")}catch{alert("Archivo no válido.")}};r.readAsText(f)}
 function resetApp(){if(confirm("¿Borrar todos los datos guardados en este dispositivo?")){localStorage.removeItem("rokelux_data");location.reload()}}
 function fmt(d){if(!d)return"";return new Date(d+"T12:00").toLocaleDateString("es-EC")}
 function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
@@ -1155,7 +1194,7 @@ function quoteBackupBeforeLoad(){
  if(!isAdmin())return;
  const key=quoteStorageKey('backup'),old=JSON.parse(localStorage.getItem(key)||'[]');
  const merged=new Map(old.map(q=>[q.id,q]));for(const q of state().quotes)merged.set(q.id,q);
- localStorage.setItem(key,JSON.stringify([...merged.values()]));
+ try{localStorage.setItem(key,JSON.stringify([...merged.values()]));}catch(e){if(!quotaError(e))throw e;showStorageNotice();}
 }
 function quoteMergeBackup(cloud){
  if(!isAdmin())return cloud;
@@ -1174,7 +1213,7 @@ function quotePhoneFromClient(){const client=state().clients.find(c=>c.id===$('q
 function quoteCache(row){
  const q=quoteFromDb(row),d=state(),i=d.quotes.findIndex(x=>x.id===q.id);
  if(i<0)d.quotes.push(q);else d.quotes[i]=q;
- localStorage.setItem('rokelux_data',JSON.stringify(d));quoteBackupBeforeLoad();renderAll();return q;
+ writeAppData(JSON.stringify(d));quoteBackupBeforeLoad();renderAll();return q;
 }
 function quoteHeaderOptions(){
  const select=$('qCpc');if(!select)return;const old=select.value;
@@ -1267,7 +1306,7 @@ async function recoverOldQuotes(){
    const {data,error}=await sb.rpc('rokelux_save_quote',{request_id:q.id,payload:quoteToDb(q),restore_old:true});if(error)throw error;
    quoteCache(data);saved++;
   }catch(e){failures.push(q.number+': '+e.message);}}
-  const d=state();d.quotes=quoteMergeBackup((await readQuotesCloud()).map(quoteFromDb));localStorage.setItem('rokelux_data',JSON.stringify(d));renderAll();
+  const d=state();d.quotes=quoteMergeBackup((await readQuotesCloud()).map(quoteFromDb));writeAppData(JSON.stringify(d));renderAll();
   alert('Recuperadas: '+saved+'.'+(failures.length?'\nPendientes:\n'+failures.join('\n'):' No hay conflictos.'));
  }catch(e){alert(e.message);}finally{quoteSaving=false;}
 }
@@ -1384,7 +1423,7 @@ function renderServiceReportDocument(popup){
   <div class="card analysis"><h3>Observaciones y recomendaciones</h3><div style="font-size:10px;line-height:1.55">${esc(s.notes||"Sin observaciones adicionales.")}</div></div>
   ${photos?`<div class="section"><h2>Evidencia fotográfica</h2><div class="photo-grid">${photos}</div></div>`:""}
   <div class="signatures avoid"><div class="sigbox">${techSig}<b>${esc(s.technicianName||"Técnico responsable")}</b><br>Técnico ROKELUX</div><div class="sigbox">${supervisorSig}<b>${esc(s.supervisorName||"Supervisor pendiente")}</b><br>Supervisor de ROKELUX</div></div>
-  <div class="footer"><span>ROKELUX · 099 498 1292 · rokelux@proton.me</span><span>Informe técnico</span></div>
+  <div class="footer"><span>ROKELUX · 099 498 1292 · info@rokeluxec.com</span><span>Informe técnico</span></div>
   </div><script>window.onload=async()=>{await Promise.all(Array.from(document.images).map(img=>img.decode?img.decode().catch(()=>{}):Promise.resolve()));const failed=Array.from(document.images).filter(img=>!img.naturalWidth);if(failed.length){const message=document.createElement('p');message.textContent='No se pudieron abrir '+failed.length+' imágenes. Revisa la conexión o el formato antes de imprimir.';message.style.color='red';document.body.prepend(message);return;}window.print();}<\/script></body></html>`;
   const w=popup;w.document.open();w.document.write(h);w.document.close();
 }
@@ -1476,7 +1515,7 @@ async function clientQuoteDecision(id,status){
   const d=state(),q=d.quotes.find(x=>x.id===id&&x.clientId===currentClientId());if(!q)return;
   if(!confirm(`¿Deseas marcar esta cotización como ${status.toLowerCase()}?`))return;
   const when=new Date().toISOString();const {error}=await sb.from('quotes').update({status,client_decision_at:when}).eq('id',id);if(error)return alert(error.message);
-  q.status=status;q.clientDecisionAt=when;localStorage.setItem('rokelux_data',JSON.stringify(d));renderClientQuotes();renderClientPortal()
+  q.status=status;q.clientDecisionAt=when;writeAppData(JSON.stringify(d));renderClientQuotes();renderClientPortal()
 }
 
 function renderClientInvoices(){
@@ -1651,7 +1690,7 @@ function printClientReport(){
   <div class="section"><h2>Evolución periódica</h2><div class="card">${bars(monthData)}</div></div>
   <div class="card analysis avoid"><h3>Análisis técnico del periodo</h3><div style="font-size:10px;line-height:1.55"><b>Plaga más frecuente:</b> ${esc(topPest[0])} (${topPest[1]} registro(s)).<br><b>Área más intervenida:</b> ${esc(topArea[0])} (${topArea[1]} intervención(es)).<br><b>Tendencia:</b> ${esc(trend.txt)}.<br><br>Este análisis se basa en los servicios registrados en la aplicación durante el periodo seleccionado y debe complementarse con inspección técnica cuando corresponda.</div></div>
   <div class="section"><h2>Historial del periodo</h2><table><tr><th>Fecha</th><th>Servicio</th><th>Plagas</th><th>Áreas</th><th>Actividad</th></tr>${history}</table></div>
-  <div class="footer"><span>ROKELUX · 099 498 1292 · rokelux@proton.me</span><span>Reporte de control de plagas</span></div>
+  <div class="footer"><span>ROKELUX · 099 498 1292 · info@rokeluxec.com</span><span>Reporte de control de plagas</span></div>
   </div><script>window.onload=()=>window.print()<\/script></body></html>`;
   const w=window.open("","_blank");w.document.write(report);w.document.close();
 }
