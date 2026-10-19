@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-10-18-user-delete">
+<meta name="rokelux-build" content="2026-10-19-assigned-orders">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -145,7 +145,7 @@ input[hidden],div[hidden]{display:none!important}</style>
 
 <div class="app">
   <header><div class="brand"><img src="logo.png" alt="ROKELUX"><div><div class="badge">PEST MANAGEMENT & BIOSECURITY</div><div class="muted">Control • Protección • Bienestar</div></div></div>
-<div class="user-menu"><div class="user-mini"><b id="currentUserName">Usuario</b><span id="currentUserRole">Perfil</span></div><button id="dispatchOpen" hidden class="btn ghost" onclick="Dispatch.open()">Mis servicios / Traslados</button><button class="btn ghost" onclick="logout()">Salir</button></div></header>
+<div class="user-menu"><div class="user-mini"><b id="currentUserName">Usuario</b><span id="currentUserRole">Perfil</span></div><button id="dispatchOpen" hidden class="btn ghost" onclick="Dispatch.open()">Órdenes de servicio</button><button class="btn ghost" onclick="logout()">Salir</button></div></header>
   <main class="shell content">
     <section id="home" class="screen active">
       <div class="hero"><h1>¡Hola!<br><span>ROKELUX</span> en acción.</h1><p>Controlamos hoy, protegemos tu mañana.</p>
@@ -198,12 +198,12 @@ input[hidden],div[hidden]{display:none!important}</style>
       <button class="btn primary" style="width:100%" onclick="saveInspection()">Guardar inspección</button>
     </section>
 
-    <section id="service" class="screen">
+    <section id="ordersHome" class="screen"><div class="panel"><h2>Mis órdenes de servicio</h2><p>Solo puedes completar las órdenes que administración te ha asignado.</p><button class="btn primary" onclick="Dispatch.open()">Consultar / actualizar órdenes</button><div id="ordersHomeRows"></div></div></section><section id="service" class="screen">
       <div class="section-title"><h2>Registro de servicio</h2><span class="tag">Trabajo</span></div>
       <div class="panel">
         <div class="field"><label>Cliente</label><select id="sClient"></select></div>
         <div class="cols"><div class="field"><label>Fecha</label><input id="sDate" type="date"></div><div class="field"><label>Tipo de servicio</label><select id="sType"><option>Fumigación / Control de plagas y vectores</option><option>Desratización</option><option>Desinfección</option><option>Inspección</option></select></div></div>
-        <div class="field"><label>Áreas intervenidas</label><input id="sAreas" placeholder="Ej. cocina, bodega, perímetro exterior"></div>
+        <p id="serviceOrderInfo" role="status"></p><div class="field"><label>Áreas intervenidas</label><input id="sAreas" placeholder="Ej. cocina, bodega, perímetro exterior"></div>
       </div>
       <div class="panel"><h3>Plagas o vectores tratados</h3><div id="servicePests" class="chips"></div></div>
       <div class="panel">
@@ -662,15 +662,15 @@ window.addEventListener('beforeunload',event=>{
 });
 
 const state=()=>{
-  const d=JSON.parse(readAppData()||'{}');
-  return {clients:d.clients||[],inspections:d.inspections||[],services:d.services||[],quotes:d.quotes||[],invoices:d.invoices||[],stations:d.stations||[],stationMaps:d.stationMaps||[],users:d.users||[],requests:d.requests||[]};
+  let d=JSON.parse(readAppData()||'{}');if(!sessionUser||d.cacheUserId!==sessionUser.id||d.cacheRole!==sessionUser.role)d={};
+  return {cacheUserId:sessionUser?.id||null,cacheRole:sessionUser?.role||null,clients:d.clients||[],inspections:d.inspections||[],services:d.services||[],quotes:d.quotes||[],invoices:d.invoices||[],stations:d.stations||[],stationMaps:d.stationMaps||[],users:d.users||[],requests:d.requests||[]};
 };
 let cloudSyncTimer=null,cloudSyncBusy=false,cloudReady=false;
 const save=d=>{writeAppData(JSON.stringify(d));renderAll();if(cloudReady){clearTimeout(cloudSyncTimer);cloudSyncTimer=setTimeout(()=>syncCloudState(d),220)}};
 
 const clean=o=>Object.fromEntries(Object.entries(o).filter(([,v])=>v!==undefined));
 function serviceToDb(s){return clean({id:s.id,client_id:s.clientId,service_date:s.date,service_type:s.type,areas:s.areas,pests:s.pests||[],products:s.products||[],other_product:s.otherProduct||null,notes:s.notes||null,photos:s.photos||[],activity:s.activity||[],technician_name:s.technicianName||null,technician_signature:s.technicianSignature||null,received_by:s.receivedBy||null,received_by_role:s.receivedByRole||null,client_signature:s.clientSignature||null,certificate_signed_at:s.certificateSignedAt||null,created_by:s.createdBy||null})}
-function serviceFromDb(s){return {id:s.id,clientId:s.client_id,date:s.service_date,type:s.service_type||"",areas:s.areas||"",pests:s.pests||[],products:s.products||[],otherProduct:s.other_product||"",notes:s.notes||"",photos:s.photos||[],activity:s.activity||[],technicianName:s.technician_name||"",technicianSignature:s.technician_signature||"",receivedBy:s.received_by||"",receivedByRole:s.received_by_role||"",clientSignature:s.client_signature||"",supervisorName:s.supervisor_name||"",supervisorSignature:s.supervisor_signature||"",supervisorSignedAt:s.supervisor_signed_at||null,certificateSignedAt:s.certificate_signed_at||"",createdBy:s.created_by||null}}
+function serviceFromDb(s){return {dispatchOrderId:s.dispatch_order_id||null,id:s.id,clientId:s.client_id,date:s.service_date,type:s.service_type||"",areas:s.areas||"",pests:s.pests||[],products:s.products||[],otherProduct:s.other_product||"",notes:s.notes||"",photos:s.photos||[],activity:s.activity||[],technicianName:s.technician_name||"",technicianSignature:s.technician_signature||"",receivedBy:s.received_by||"",receivedByRole:s.received_by_role||"",clientSignature:s.client_signature||"",supervisorName:s.supervisor_name||"",supervisorSignature:s.supervisor_signature||"",supervisorSignedAt:s.supervisor_signed_at||null,certificateSignedAt:s.certificate_signed_at||"",createdBy:s.created_by||null}}
 function inspectionToDb(x){return {id:x.id,client_id:x.clientId,inspection_date:x.date,address:x.address||null,installation_type:x.type||null,contact:x.contact||null,notes:x.notes||null,pests:x.pests||[],created_by:x.createdBy||null}}
 function inspectionFromDb(x){return {id:x.id,clientId:x.client_id,date:x.inspection_date,address:x.address||"",type:x.installation_type||"",contact:x.contact||"",notes:x.notes||"",pests:x.pests||[]}}
 function quoteToDb(q){return {id:q.id,client_id:q.clientId,number:q.number,quote_date:q.date,validity_days:q.validity||15,notes:q.notes||null,items:q.items||[],subtotal:Number(q.subtotal??q.total??0),vat_rate:Number(q.vatRate||0),vat:Number(q.vat||0),total:Number(q.total||0),status:q.status||"Pendiente",client_decision_at:q.clientDecisionAt||null,quote_details:q.details||{}}}
@@ -684,16 +684,17 @@ function mapFromDb(x){return {id:x.id,clientId:x.client_id,site:x.site||"",backg
 function requestToDb(x){return {id:x.id,client_id:x.clientId,user_id:x.userId||null,request_type:x.type||null,message:x.message,photo_url:x.photo||null,status:x.status||"Nueva",created_at:x.date||undefined}}
 function requestFromDb(x){return {id:x.id,clientId:x.client_id,userId:x.user_id,type:x.request_type||"",message:x.message,photo:x.photo_url||"",status:x.status||"Nueva",date:x.created_at}}
 
-async function qTable(table){const {data,error}=await sb.from(table).select('*');if(error){console.warn(table,error.message);return []}return data||[]}
+async function qTable(table){if(isTech()&&!['clients','services','profiles'].includes(table))return [];const {data,error}=await sb.from(table).select('*');if(error){console.warn(table,error.message);return []}return data||[]}
 async function loadCloudState(){
+  const loadingUser=sessionUser?.id; if(!loadingUser)return; 
   quoteBackupBeforeLoad();
   const [clients,inspections,services,quotes,invoices,stations,maps,requests,profiles]=await Promise.all([qTable('clients'),qTable('inspections'),qTable('services'),readQuotesCloud(),qTable('invoices'),qTable('stations'),qTable('station_maps'),qTable('requests'),qTable('profiles')]);
-  const d={
+  const d={cacheUserId:sessionUser.id,cacheRole:sessionUser.role,
     clients:clients.map(c=>({id:c.id,name:c.name,doc:c.doc||"",phone:c.phone||"",address:c.address||"",email:c.email||"",latitude:c.latitude??null,longitude:c.longitude??null,active:c.active!==false})),
     inspections:inspections.map(inspectionFromDb),services:services.map(serviceFromDb),quotes:quoteMergeBackup(quotes.map(quoteFromDb)),invoices:invoices.map(invoiceFromDb),stations:stations.map(stationFromDb),stationMaps:maps.map(mapFromDb),requests:requests.map(requestFromDb),
     users:profiles.map(p=>({id:p.user_id,name:p.full_name||"Usuario",username:p.email||"",role:p.role,clientId:p.client_id||null,active:p.active!==false}))
   };
-  writeAppData(JSON.stringify(d));cloudReady=true;renderAll();return d;
+  if(sessionUser?.id!==loadingUser)return;writeAppData(JSON.stringify(d));cloudReady=true;renderAll();return d;
 }
 async function syncCollection(table,rows,canDelete=false){
   const {error:upErr}=rows.length?await sb.from(table).upsert(rows,{onConflict:'id'}):{error:null};if(upErr){console.warn('sync',table,upErr.message);return}
@@ -727,7 +728,7 @@ async function login(){
   const email=$('loginUser').value.trim(),password=$('loginPass').value,btn=$('loginBtn'),status=$('loginStatus');if(!email||!password)return alert('Ingresa correo y contraseña.');
   btn.disabled=true;status.textContent='Verificando acceso…';
   try{const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;sessionUser=await fetchMyProfile(data.user);status.textContent='Cargando información…';await loadCloudState();$('loginOverlay').style.display='none';applyRole();renderAll();}
-  catch(err){sessionUser=null;cloudReady=false;await sb.auth.signOut({scope:'local'});status.textContent='';alert('No se pudo ingresar: '+(err.message||err));}
+  catch(err){sessionUser=null;cloudReady=false;writeAppData('{}');await sb.auth.signOut({scope:'local'});status.textContent='';alert('No se pudo ingresar: '+(err.message||err));}
   finally{btn.disabled=false}
 }
 async function restoreSession(){
@@ -737,7 +738,7 @@ async function restoreSession(){
   if(!data.session)return;
   try{sessionUser=await fetchMyProfile(data.session.user);await loadCloudState();$('loginOverlay').style.display='none';applyRole();renderAll()}catch(e){await sb.auth.signOut({scope:'local'});sessionUser=null;cloudReady=false;$('loginStatus').textContent='No se pudo cargar la información: '+(e.message||e)}
 }
-async function logout(){await Dispatch.endSession();sessionUser=null;cloudReady=false;await sb.auth.signOut({scope:'local'});$('loginOverlay').style.display='grid';$('loginPass').value='';$('loginStatus').textContent='';window.scrollTo(0,0)}
+async function logout(){await Dispatch.endSession();selectedServiceOrder=null;clearTimeout(cloudSyncTimer);sessionUser=null;cloudReady=false;writeAppData('{}');renderAll();await sb.auth.signOut({scope:'local'});$('loginOverlay').style.display='grid';$('loginPass').value='';$('loginStatus').textContent='';window.scrollTo(0,0)}
 function roleLabel(r){return r==="admin"?"Administrativo":r==="technician"?"Técnico":"Cliente"}
 function isAdmin(){return sessionUser?.role==="admin"}function isTech(){return sessionUser?.role==="technician"}function isClient(){return sessionUser?.role==="client"}
 function canEditTechnical(){return isAdmin()||isTech()}
@@ -755,7 +756,7 @@ function applyRole(){
     // Nada adicional: las pantallas administrativas ya están bloqueadas por allowedScreen.
   }
 
-  if(isClient())go("clientPortal");else go("home");
+  if(isClient())go("clientPortal");else if(isTech()){go("ordersHome");void Dispatch.open();}else go("home");
 }
 function renderRoleNav(){
   const nav=$("bottomNav");if(!nav||!sessionUser)return;
@@ -767,12 +768,7 @@ function renderRoleNav(){
       <button class="nav" data-screen="clientDocs" onclick="go('clientDocs')"><span>▤</span>Documentos</button>
       <button class="nav" data-screen="clientQuotes" onclick="go('clientQuotes')"><span>💵</span>Cotizaciones</button>`;
   }else if(isTech()){
-    nav.innerHTML=`
-      <button class="nav active" data-screen="home" onclick="go('home')"><span>⌂</span>Inicio</button>
-      <button class="nav" data-screen="clients" onclick="go('clients')"><span>♙</span>Clientes</button>
-      <button class="nav" data-screen="service" onclick="go('service')"><span>🛠</span>Servicios</button>
-      <button class="nav" data-screen="certificates" onclick="go('certificates')"><span>📄</span>Certificado</button>
-      <button class="nav" data-screen="stations" onclick="go('stations')"><span>📍</span>Estaciones</button>`;
+    nav.innerHTML=`<button class="nav" onclick="go('ordersHome');Dispatch.open()">Mis órdenes</button><button class="nav" onclick="go('certificates')">Mis certificados</button>`;
   }else{
     nav.innerHTML=`
       <button class="nav active" data-screen="home" onclick="go('home')"><span>⌂</span>Inicio</button>
@@ -785,7 +781,7 @@ function renderRoleNav(){
 function allowedScreen(id){
   if(!sessionUser)return false;
   if(isAdmin())return true;
-  if(isTech())return ["home","clients","inspection","service","history","stations","certificates","certificateSign","serviceReports","settings"].includes(id);
+  if(isTech())return ["ordersHome","service","certificates","certificateSign","serviceReports"].includes(id);
   const ok=["clientPortal","history","reports","clientDocs","clientQuotes","stations"];
   return ok.includes(id);
 }
@@ -800,6 +796,9 @@ function initDemo(){
   save(d);
 }
 function go(id){
+  if(isTech()&&id==='service'&&!selectedServiceOrder){alert('Abre una orden desde Mis órdenes para registrar el servicio.');return;}
+  if(id==='service'&&!selectedServiceOrder){$('sClient').disabled=false;$('serviceOrderInfo').textContent='';}
+
   if(sessionUser&&!allowedScreen(id)){alert("Tu perfil no tiene permiso para acceder a esta sección.");return}
   document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("active",s.id===id));
   document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.screen===id));
@@ -987,6 +986,7 @@ function cacheConfirmedService(row){
   writeAppData(JSON.stringify(d));renderAll();
 }
 async function saveService(){
+  if(isTech()||selectedServiceOrder)return Orders.save();
   if(!canEditTechnical())return alert('Tu perfil no puede registrar servicios.');
   if(serviceWriteBusy)return;
   await photoLoad;
@@ -1257,6 +1257,7 @@ function quoteMergeBackup(cloud){
  return [...cloud,...backup.filter(q=>!ids.has(q.id)).map(q=>({...q,localOnly:true}))];
 }
 async function readQuotesCloud(){
+ if(isTech())return []; 
  const {data,error}=await sb.from('quotes').select('*').order('number');
  if(error)throw Error('No se pudieron cargar las cotizaciones; se conserva el respaldo local: '+error.message);
  return data||[];
@@ -1798,7 +1799,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
  <button class="btn ghost" onclick="Dispatch.open()">Actualizar tareas</button>
  <div id="dispatchMapBox" hidden><p id="dispatchMapStatus"></p><iframe id="dispatchMap" title="Última ubicación del técnico" loading="lazy" referrerpolicy="no-referrer"></iframe><small>Mapa de OpenStreetMap. Muestra el último punto recibido, no un historial del recorrido.</small></div>
  <div id="dispatchRows"></div>
- <p>Finalizar una tarea no genera un certificado: registra el trabajo realizado en Servicios como de costumbre.</p>
+ <p>Abre la orden para completar el certificado. La orden se finalizará al guardar las firmas del técnico y del cliente.</p>
  </div>
 </div>
 
@@ -1834,7 +1835,7 @@ const Dispatch=(()=>{
    const user=sessionUser;
    $('dispatchOpen').hidden=!user;
    if(!user)return;
-   if(owner!==user.id){stopLocal();rows=[];pendingStop=null;owner=user.id;mapId=null;$('dispatchMapBox').hidden=true;$('dispatchMap').removeAttribute('src');}
+   if(owner!==user.id){stopLocal();rows=[];selectedServiceOrder=null;pendingStop=null;owner=user.id;mapId=null;$('dispatchMapBox').hidden=true;$('dispatchMap').removeAttribute('src');}
    $('dispatchAssign').hidden=!isAdmin();
    $('dispatchRows').innerHTML=rows.map(t=>{
      const own=isTech()&&t.technician_id===user.id;
@@ -1843,11 +1844,12 @@ const Dispatch=(()=>{
      if(own&&t.status==='assigned')buttons+=btn('accept','Aceptar servicio');
      if(own&&(t.status==='accepted'||t.status==='traveling')&&activeId!==t.id)buttons+=btn('start','Iniciar / reanudar traslado');
      if(own&&t.status==='traveling'){buttons+=btn('pause','Dejar de compartir')+btn('arrive','Llegué');}
-     if(own&&t.status==='arrived')buttons+=btn('complete','Finalizar tarea');
+     if((own||isAdmin())&&t.status!=='cancelled')buttons+='<button class="btn primary" onclick="Orders.open(\''+t.id+'\')">Completar / ver certificado</button>';
      if(isAdmin()&&!['completed','cancelled'].includes(t.status))buttons+=btn('cancel','Cancelar tarea');
      if(mapURL(t))buttons+='<button class="btn primary" onclick="Dispatch.map(\''+t.id+'\')">Ver ubicación</button>';
      return '<div class="panel"><b>'+esc(t.title)+'</b><p>'+esc(t.client_name)+' · '+esc(t.technician_name)+'</p><p>'+esc(new Date(t.scheduled_at).toLocaleString('es-EC'))+'</p><p>'+esc(statusText(t))+'</p><small>'+esc(arrivalText(t))+'</small>'+(t.location_at?'<p>Último dato: '+esc(new Date(t.location_at).toLocaleTimeString('es-EC'))+' · precisión aproximada '+Math.round(t.accuracy)+' m</p>':'')+'<div class="actions" style="flex-wrap:wrap">'+buttons+'</div></div>';
    }).join('')||'<p>No hay tareas asignadas.</p>';
+   $('ordersHomeRows').innerHTML=isTech()?$('dispatchRows').innerHTML:'';
    if(mapId){const t=rows.find(t=>t.id===mapId),url=t&&mapURL(t);if(url){if($('dispatchMap').getAttribute('src')!==url)$('dispatchMap').src=url;$('dispatchMapStatus').textContent=statusText(t);}else{mapId=null;$('dispatchMapBox').hidden=true;$('dispatchMap').removeAttribute('src');}}
  }
  async function refresh(){
@@ -1871,7 +1873,7 @@ const Dispatch=(()=>{
      $('dispatchClient').innerHTML='<option value="">Selecciona cliente</option>'+results[0].data.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
      $('dispatchTech').innerHTML='<option value="">Selecciona técnico</option>'+results[1].data.map(t=>'<option value="'+t.user_id+'">'+esc(t.full_name)+'</option>').join('');
    }
-   await refresh();render();
+   await loadCloudState();await refresh();render();
  }
  async function create(){
    if(!isAdmin()||busy)return;
@@ -1937,6 +1939,60 @@ const Dispatch=(()=>{
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&activeId)flush();});
  return {open,create,act,map,render,endSession,stop:()=>{const t=activeId||pendingStop;if(t)act('pause',t);}};
 })();
+
+</script>
+<script>
+let selectedServiceOrder=null;
+const Orders={
+ async open(id){
+  if(!isAdmin()&&!isTech())return;
+  if(serviceWriteBusy)return;
+  try{
+   const uid=sessionUser.id;
+   const {data:order,error}=await sb.from('rokelux_dispatch').select('*').eq('id',id).single();
+   if(error)throw error;
+   if(order.status==='cancelled'||(isTech()&&order.technician_id!==uid))throw Error('Esta orden no está disponible para tu usuario.');
+   const {data:row,error:serviceError}=await sb.from('services').select('*').eq('dispatch_order_id',id).maybeSingle();
+   if(serviceError)throw serviceError;
+   await loadCloudState();
+   if(sessionUser?.id!==uid)return;
+   selectedServiceOrder={...order,serviceId:row?.id||null};
+   $('dispatchPanel').hidden=true;go('service');
+   const s=row?serviceFromDb(row):null;
+   $('sClient').value=order.client_id;$('sClient').disabled=true;
+   $('sDate').value=s?.date||new Date(order.scheduled_at).toLocaleDateString('en-CA');
+   if(s?.type&&!Array.from($('sType').options).some(o=>o.value===s.type))$('sType').add(new Option(s.type,s.type));
+   $('sType').value=s?.type||'Fumigación / Control de plagas y vectores';
+   $('sAreas').value=s?.areas||'';$('sNotes').value=s?.notes||'';$('sOtherProduct').value=s?.otherProduct||'';
+   for(const prefix of ['sp','pr'])document.querySelectorAll('input[id^="'+prefix+'"][type="checkbox"]').forEach(el=>el.checked=(prefix==='sp'?s?.pests:s?.products)?.includes(el.value)||false);
+   renderActivityRows();
+   document.querySelectorAll('#activityRows .activity-row').forEach(el=>{const a=s?.activity?.find(x=>x.pest===el.dataset.pest);if(a){el.querySelector('select').value=a.level;el.querySelector('input').value=a.count;}});
+   ++photoLoadVersion;photoLoad=Promise.resolve();photoLoadError=null;currentPhotos=s?.photos||[];
+   $('photoGrid').innerHTML=currentPhotos.map(src=>'<div class="photo"><img src="'+esc(src)+'"></div>').join('');
+   servicePendingId=s?.id||crypto.randomUUID();servicePendingOwner=uid;
+   $('serviceOrderInfo').textContent='Orden: '+order.title+' · '+order.client_name+' · Técnico: '+order.technician_name;
+  }catch(e){alert('No se pudo abrir la orden: '+e.message);}
+ },
+ async save(){
+  if(serviceWriteBusy)return;
+  const order=selectedServiceOrder;if(!order)return alert('Abre una orden asignada desde Mis órdenes.');
+  await photoLoad;if(serviceWriteBusy)return;if(photoLoadError)return alert(photoLoadError.message);
+  if(!navigator.onLine)return alert('Necesitas conexión para guardar la orden. Conserva el formulario abierto.');
+  const uid=sessionUser.id;serviceWriteBusy=true;
+  try{
+   const {data:live,error:oe}=await sb.from('rokelux_dispatch').select('*').eq('id',order.id).single();if(oe)throw oe;
+   if(live.status==='cancelled'||(isTech()&&live.technician_id!==uid))throw Error('La orden ya no está disponible para tu usuario.');
+   const {data:existing,error:re}=await sb.from('services').select('*').eq('dispatch_order_id',order.id).maybeSingle();if(re)throw re;
+   const patch={service_date:$('sDate').value,service_type:$('sType').value,areas:$('sAreas').value,pests:selected('sp'),products:selected('pr'),other_product:$('sOtherProduct').value,notes:$('sNotes').value,photos:[...new Set([...(existing?.photos||[]),...currentPhotos])],activity:getActivityData()};
+   let result=existing?await sb.from('services').update(patch).eq('id',existing.id).select('*').single():await sb.from('services').insert({...patch,id:servicePendingId,client_id:live.client_id,dispatch_order_id:live.id,created_by:uid,technician_name:live.technician_name}).select('*').single();
+   if(result.error?.code==='23505')throw Error('Esta orden ya tiene un servicio. Vuelve a abrirla desde Mis órdenes para continuar sin duplicarlo.');
+   if(result.error)throw result.error;
+   if(sessionUser?.id!==uid)return;
+   cacheConfirmedService(result.data);selectedServiceOrder=null;servicePendingId=null;currentPhotos=[];$('photoGrid').innerHTML='';$('sClient').disabled=false;
+   alert('Servicio guardado en su orden. Completa las firmas para finalizar y enviar el certificado.');openCertificateSign(result.data.id);
+  }catch(e){alert('No se pudo guardar la orden: '+e.message);}finally{serviceWriteBusy=false;}
+ }
+};
 
 </script>
 </body></html>
