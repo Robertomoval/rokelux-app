@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-10-07-indexeddb-cache">
+<meta name="rokelux-build" content="2026-10-18-user-delete">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -1600,10 +1600,25 @@ async function editUserProfile(id){
   let clientId=null;if(role==='client'){clientId=prompt('ID del cliente vinculado:',u.clientId||'');if(!clientId)return alert('El cliente requiere un ID vinculado.');}
   const {error}=await sb.from('profiles').update({full_name:name,role,client_id:clientId}).eq('user_id',id);if(error)return alert(error.message);await loadCloudState();
 }
+const deletingProfiles=new Set();
 async function deleteUserProfile(id){
-  if(!isAdmin())return;if(sessionUser?.id===id)return alert('No puedes eliminar tu propio perfil administrativo.');const u=state().users.find(x=>x.id===id);if(!u)return;
-  if(!confirm(`¿Eliminar el perfil de acceso de ${u.name}? La identidad de Authentication quedará sin permisos ROKELUX.`))return;
-  const {error}=await sb.from('profiles').delete().eq('user_id',id);if(error)return alert(error.message);await loadCloudState();
+  if(!isAdmin()||deletingProfiles.has(id))return;
+  if(sessionUser?.id===id)return alert('No puedes eliminar tu propio perfil administrativo.');
+  const u=state().users.find(x=>x.id===id);if(!u)return;
+  if(!confirm(`¿Eliminar el acceso de ${u.name} a ROKELUX? Su cuenta de inicio de sesión se conservará, pero quedará sin acceso a la aplicación.`))return;
+  deletingProfiles.add(id);
+  let deleted=false;
+  try{
+    const {data,error}=await sb.from('profiles').delete().eq('user_id',id).select('user_id');
+    if(error)throw error;
+    if(!data?.some(row=>row.user_id===id))throw new Error('No se eliminó el usuario. Comprueba que tu cuenta administrativa esté activa y vuelve a intentarlo.');
+    deleted=true;
+    await loadCloudState();
+    alert('El acceso del usuario a ROKELUX fue eliminado.');
+  }catch(error){
+    const detail=error?.code==='42501'?'Tu sesión no tiene permiso para eliminar usuarios. Inicia sesión con una cuenta administrativa activa.':(error?.message||'No se pudo conectar con el servidor.');
+    alert(deleted?'El acceso fue eliminado, pero no se pudo actualizar la lista. Recarga la página.':'No se pudo eliminar el usuario: '+detail);
+  }finally{deletingProfiles.delete(id);}
 }
 function renderUsers(){
   const el=$("userList");if(!el||!isAdmin())return;const d=state();
