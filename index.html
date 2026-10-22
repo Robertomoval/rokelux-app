@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-10-19-assigned-orders">
+<meta name="rokelux-build" content="2026-10-22-quote-header">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -1410,8 +1410,8 @@ function docHeader(title,subtitle=""){
 function printQuote(id){
   const d=state(),q=d.quotes.find(x=>x.id===id);if(!q||(isClient()&&q.clientId!==currentClientId()))return alert('Cotización no disponible.');const details=q.details||{},live=d.clients.find(x=>x.id===q.clientId)||{},cl={name:details.clientName??live.name,doc:details.clientDoc??live.doc,address:details.clientAddress??live.address};
   const rows=q.items.map(x=>`<tr><td>${esc(x.description)}</td><td>${x.qty}</td><td>${money(x.price)}</td><td>${money(x.qty*x.price)}</td></tr>`).join("");
-  const h=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(q.number)}</title><style>${docBaseCss(".footer{position:static;margin-top:12mm}.meta-grid>div{overflow-wrap:anywhere}.section.avoid{break-inside:auto}tr{break-inside:avoid}")}</style></head><body><div class="page">
-  ${docHeader(`COTIZACIÓN ${esc(q.number)}`,"Propuesta comercial ROKELUX")}
+  const h=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(q.number)}</title><style>${docBaseCss(".hero{background:#fff;border-radius:0;padding:0;align-items:flex-start;gap:12mm}.hero img{flex:0 0 55mm;max-height:22mm}.hero .company{flex:1;min-width:0;color:#7b847d;text-align:right}.hero .company b{color:#63ad25;font-size:10px;letter-spacing:0;white-space:normal;overflow:visible}.footer{position:static;margin-top:12mm}.meta-grid>div{overflow-wrap:anywhere}.section.avoid{break-inside:auto}tr{break-inside:avoid}")}</style></head><body><div class="page">
+  ${docHeader(`COTIZACIÓN ${esc(q.number)}`,"Propuesta comercial ROKELUX").replace("<b>PEST MANAGEMENT & BIOSECURITY</b>","<b>ROKELUX PEST MANAGEMENT & BIOSECURITY S.A.S.</b>").replace("<br>Luis Uquillas y Sanmiguel","<br>administracion@rokeluxec.com<br>Luis Uquillas y Sanmiguel")}
   <div class="card"><div class="meta-grid"><div><b>Cliente:</b> ${esc(cl.name||"")}</div><div><b>RUC/C.I.:</b> ${esc(cl.doc||"")}</div><div><b>Dirección:</b> ${esc(cl.address||"")}</div><div><b>Fecha:</b> ${fmt(q.date)}</div><div><b>Vigencia de la Oferta:</b> ${esc(details.offerValidity||q.validity+" días")}</div><div><b>Forma de Pago:</b> ${esc(details.payment||"—")}</div><div><b>Teléfono:</b> ${esc(details.phone||live.phone||"—")}</div><div><b>CPC:</b> ${esc(details.cpc||"—")}</div><div><b>Plazo de ejecución:</b> ${esc(details.execution||"—")}</div><div><b>Estado:</b> ${esc(q.status||"Pendiente")}</div></div></div>
   <div class="section avoid"><h2>Detalle de servicios</h2><table><tr><th>Descripción</th><th>Cant.</th><th>P. unit.</th><th>Total</th></tr>${rows}</table></div>
   ${q.notes?`<div class="card analysis"><h3>Alcance / observaciones</h3><div style="font-size:10px;line-height:1.5">${esc(q.notes)}</div></div>`:""}
