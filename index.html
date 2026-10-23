@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-10-23-contact">
+<meta name="rokelux-build" content="2026-10-23-master-email">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -492,7 +492,7 @@ input[hidden],div[hidden]{display:none!important}</style>
         <div class="settings-row" onclick="go('stations')" style="cursor:pointer"><div><b>Mapa de estaciones</b><div class="muted">Ubicación y estado de estaciones de roedores</div></div><span>›</span></div>
         <div class="settings-row admin-only" onclick="go('usersAdmin')" style="cursor:pointer"><div><b>Usuarios y accesos</b><div class="muted">Administrativo, técnicos y clientes</div></div><span>›</span></div>
       </div>
-      <div class="panel"><h3>Datos en la nube</h3><p class="note">La aplicación está conectada a Supabase. Los datos autorizados se sincronizan entre los dispositivos según el perfil de cada usuario.</p><div class="actions"><button class="btn secondary" onclick="refreshCloud()">Actualizar desde la nube</button><button class="btn secondary admin-only" onclick="exportData()">Exportar respaldo local</button></div></div>
+      <div id="masterEmailChange" class="panel" hidden><h3>Actualizar acceso maestro</h3><p>Conserva tu cuenta y sus permisos. Escribe administracion@rokeluxec.com y confirma el cambio desde tus correos.</p><div class="field"><label for="masterEmail">Nuevo correo de acceso</label><input id="masterEmail" type="email" autocomplete="off"></div><button id="masterEmailButton" class="btn primary" onclick="requestMasterEmailChange()">Solicitar cambio de correo</button><p id="masterEmailStatus" role="status"></p></div><div class="panel"><h3>Datos en la nube</h3><p class="note">La aplicación está conectada a Supabase. Los datos autorizados se sincronizan entre los dispositivos según el perfil de cada usuario.</p><div class="actions"><button class="btn secondary" onclick="refreshCloud()">Actualizar desde la nube</button><button class="btn secondary admin-only" onclick="exportData()">Exportar respaldo local</button></div></div>
       <button class="btn danger" style="width:100%" onclick="resetApp()">Borrar datos de prueba</button>
     </section>
   </main>
@@ -743,7 +743,24 @@ function roleLabel(r){return r==="admin"?"Administrativo":r==="technician"?"Téc
 function isAdmin(){return sessionUser?.role==="admin"}function isTech(){return sessionUser?.role==="technician"}function isClient(){return sessionUser?.role==="client"}
 function canEditTechnical(){return isAdmin()||isTech()}
 function currentClientId(){return isClient()?sessionUser.clientId:null}
+let masterEmailBusy=false;
+async function requestMasterEmailChange(){
+ if(!isAdmin()||masterEmailBusy)return;
+ const email=$('masterEmail').value.trim().toLowerCase(),status=$('masterEmailStatus');
+ if(email!=='administracion@rokeluxec.com'){status.textContent='Escribe administracion@rokeluxec.com para este cambio.';return;}
+ masterEmailBusy=true;$('masterEmailButton').disabled=true;status.textContent='Solicitando confirmación…';
+ try{
+  const {data:auth,error:authError}=await sb.auth.getUser();if(authError)throw authError;
+  if(!auth.user||auth.user.id!==sessionUser.id||auth.user.email!=='rokelux@proton.me')throw Error('Ingresa con la cuenta administradora actual.');
+  const profile=await fetchMyProfile(auth.user);if(profile.role!=='admin')throw Error('Solo la cuenta administradora puede realizar este cambio.');
+  const {data,error}=await sb.auth.updateUser({email});if(error)throw error;
+  if(data.user?.email===email){sessionUser.username=email;status.textContent='Correo actualizado. En tu próximo ingreso utiliza administracion@rokeluxec.com y tu contraseña actual.';}
+  else status.textContent='Solicitud enviada. Revisa rokelux@proton.me y administracion@rokeluxec.com y completa las confirmaciones recibidas. El acceso anterior sigue vigente hasta confirmar.';
+ }catch(error){status.textContent='No se completó el cambio: '+(error.message||'Intenta nuevamente.');$('masterEmailButton').disabled=false;}
+ finally{masterEmailBusy=false;}
+}
 function applyRole(){
+  $("masterEmailChange").hidden=!(isAdmin()&&sessionUser?.username==="rokelux@proton.me");
   if(!sessionUser)return;
   $("currentUserName").textContent=sessionUser.name;$("currentUserRole").textContent=roleLabel(sessionUser.role);
   document.querySelectorAll(".admin-only").forEach(x=>x.style.display=isAdmin()?"":"none");
