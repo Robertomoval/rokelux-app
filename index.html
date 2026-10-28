@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-10-27-letter-justified">
+<meta name="rokelux-build" content="2026-10-28-technician-stations">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -667,7 +667,7 @@ function mapFromDb(x){return {id:x.id,clientId:x.client_id,site:x.site||"",backg
 function requestToDb(x){return {id:x.id,client_id:x.clientId,user_id:x.userId||null,request_type:x.type||null,message:x.message,photo_url:x.photo||null,status:x.status||"Nueva",created_at:x.date||undefined}}
 function requestFromDb(x){return {id:x.id,clientId:x.client_id,userId:x.user_id,type:x.request_type||"",message:x.message,photo:x.photo_url||"",status:x.status||"Nueva",date:x.created_at}}
 
-async function qTable(table){if(isTech()&&!['clients','services','profiles'].includes(table))return [];const {data,error}=await sb.from(table).select('*');if(error){console.warn(table,error.message);return []}return data||[]}
+async function qTable(table){if(isTech()&&!['clients','services','profiles','stations','station_maps'].includes(table))return [];const {data,error}=await sb.from(table).select('*');if(error){console.warn(table,error.message);return []}return data||[]}
 async function loadCloudState(){
   const loadingUser=sessionUser?.id; if(!loadingUser)return; 
   quoteBackupBeforeLoad();
@@ -768,7 +768,7 @@ function renderRoleNav(){
       <button class="nav" data-screen="clientDocs" onclick="go('clientDocs')"><span>▤</span>Documentos</button>
       <button class="nav" data-screen="clientQuotes" onclick="go('clientQuotes')"><span>💵</span>Cotizaciones</button>`;
   }else if(isTech()){
-    nav.innerHTML=`<button class="nav" onclick="go('ordersHome');Dispatch.open()">Mis órdenes</button><button class="nav" onclick="go('certificates')">Mis certificados</button>`;
+    nav.innerHTML=`<button class="nav" onclick="go('ordersHome');Dispatch.open()">Mis órdenes</button><button class="nav" onclick="go('certificates')">Mis certificados</button><button class="nav" onclick="go('stations')">Estaciones</button><button class="nav" onclick="go('serviceReports')">Informes</button>`;
   }else{
     nav.innerHTML=`
       <button class="nav active" data-screen="home" onclick="go('home')"><span>⌂</span>Inicio</button>
@@ -781,7 +781,7 @@ function renderRoleNav(){
 function allowedScreen(id){
   if(!sessionUser)return false;
   if(isAdmin())return true;
-  if(isTech())return ["ordersHome","service","certificates","certificateSign","serviceReports"].includes(id);
+  if(isTech())return ["ordersHome","service","certificates","certificateSign","serviceReports","stations"].includes(id);
   const ok=["clientPortal","history","reports","clientDocs","clientQuotes","stations"];
   return ok.includes(id);
 }
@@ -1474,6 +1474,19 @@ function printInvoice(id){
   </div><script>window.onload=()=>window.print()<\/script></body></html>`;
   const w=window.open("","_blank");w.document.write(h);w.document.close();
 }
+function reportStationHtml(map,stations){
+ if(!map?.background&&!stations.length)return '';
+ const pos=v=>Math.max(0,Math.min(100,Number(v)||0));
+ const pins=stations.map(s=>`<span style="position:absolute;left:${pos(s.x)}%;top:${pos(s.y)}%;transform:translate(-50%,-50%);background:${baitColor(s.baitStatus)};color:#111;border:1px solid #333;border-radius:4px;font-size:9px;padding:3px">${esc(s.code)}</span>`).join('');
+ const rows=[...stations].sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true})).map(s=>`<tr><td><b>${esc(s.code)} – ${esc(baitLabel(s.baitStatus))}</b></td><td>${esc(s.status==='Operativa'?'Normal':s.status)}</td><td>${esc(fmt(s.lastCheck)||'—')}</td><td>${esc(s.notes||'')}</td></tr>`).join('');
+ return `<div class="section"><h2>Estaciones de roedores</h2><p style="font-size:10px">${esc(map?.site||'Mapa de estaciones')} · Último control guardado</p>${map?.background?`<div style="position:relative;width:100%;aspect-ratio:16/10;overflow:hidden;break-inside:avoid"><img src="${esc(map.background)}" alt="Mapa de estaciones" style="display:block;width:100%;height:100%;object-fit:cover">${pins}</div>`:''}<table><thead><tr><th>Estación – cebo</th><th>Estado de trampa</th><th>Última revisión</th><th>Observaciones</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Sin estaciones registradas.</td></tr>'}</tbody></table></div>`;
+}
+async function loadReportStations(cid){
+ const [m,s]=await Promise.all([sb.from('station_maps').select('*').eq('client_id',cid).maybeSingle(),sb.from('stations').select('*').eq('client_id',cid)]);
+ if(m.error)throw m.error;if(s.error)throw s.error;
+ return {map:m.data?mapFromDb(m.data):null,stations:(s.data||[]).map(stationFromDb)};
+}
+
 function renderServiceReports(){
   const d=state();if(isClient())d.services=d.services.filter(s=>s.clientId===currentClientId());const sel=$("srService"),list=$("serviceReportList");if(!sel||!list)return;
   const cur=sel.value;sel.innerHTML='<option value="">Seleccionar servicio…</option>'+[...d.services].reverse().map(s=>`<option value="${s.id}">${fmt(s.date)} · ${esc(clientName(s.clientId))} · ${esc(s.type)}</option>`).join("");if(cur)sel.value=cur;
@@ -1486,10 +1499,10 @@ async function printServiceReport(){
   try{
     const {data,error}=await sb.from('services').select('*').eq('id',id).single();if(error)throw error;
     if(isClient()&&data.client_id!==currentClientId())throw Error('Servicio no autorizado.');
-    cacheConfirmedService(data);$('srService').value=id;renderServiceReportDocument(popup);
+    const rodents=await loadReportStations(data.client_id);cacheConfirmedService(data);$('srService').value=id;renderServiceReportDocument(popup,rodents);
   }catch(e){popup.close();alert('No se pudo cargar el informe: '+e.message);}
 }
-function renderServiceReportDocument(popup){
+function renderServiceReportDocument(popup,rodents={map:null,stations:[]}){
   const id=$("srService").value;if(!id)return alert("Selecciona un servicio.");
   const d=state(),s=d.services.find(x=>x.id===id);if(!s||(isClient()&&s.clientId!==currentClientId()))return alert('Servicio no disponible para este usuario.');const cl=d.clients.find(x=>x.id===s.clientId)||{};
   const activity=(s.activity||[]).map(a=>`<tr><td>${esc(a.pest)}</td><td><span class="pill">${esc(a.level)}</span></td><td>${a.count||0}</td></tr>`).join("")||"<tr><td colspan='3'>Sin niveles registrados</td></tr>";
@@ -1503,6 +1516,7 @@ function renderServiceReportDocument(popup){
   <div class="section avoid"><h2>Nivel de actividad / incidencias</h2><table><tr><th>Plaga / vector</th><th>Nivel</th><th>Cantidad</th></tr>${activity}</table></div>
   <div class="card analysis"><h3>Observaciones y recomendaciones</h3><div style="font-size:10px;line-height:1.55">${esc(s.notes||"Sin observaciones adicionales.")}</div></div>
   ${photos?`<div class="section"><h2>Evidencia fotográfica</h2><div class="photo-grid">${photos}</div></div>`:""}
+  ${reportStationHtml(rodents.map,rodents.stations)}
   <div class="signatures avoid"><div class="sigbox">${techSig}<b>${esc(s.technicianName||"Técnico responsable")}</b><br>Técnico ROKELUX</div><div class="sigbox">${supervisorSig}<b>${esc(s.supervisorName||"Supervisor pendiente")}</b><br>Supervisor de ROKELUX</div></div>
   <div class="footer"><span>ROKELUX · 099 498 1292 · info@rokeluxec.com</span><span>Informe técnico</span></div>
   </div><script>window.onload=async()=>{await Promise.all(Array.from(document.images).map(img=>img.decode?img.decode().catch(()=>{}):Promise.resolve()));const failed=Array.from(document.images).filter(img=>!img.naturalWidth);if(failed.length){const message=document.createElement('p');message.textContent='No se pudieron abrir '+failed.length+' imágenes. Revisa la conexión o el formato antes de imprimir.';message.style.color='red';document.body.prepend(message);return;}window.print();}<\/script></body></html>`;
@@ -1521,14 +1535,14 @@ async function loadStationMap(){
  }catch(e){stationMapMessage(cid,'No se pudo cargar el mapa: '+e.message);}
 }
 function getCurrentMap(){const cid=$('mClient')?.value;return state().stationMaps.find(x=>x.clientId===cid)||null;}
-function saveMapMeta(){const cid=$('mClient').value;if(!isAdmin()||!cid)return;stationMapDrafts.set(cid,{...stationMapDrafts.get(cid),site:$('mSite').value});stationMapMessage(cid,'Área modificada. Pulsa Guardar mapa.');}
+function saveMapMeta(){const cid=$('mClient').value;if(!canEditTechnical()||!cid)return;stationMapDrafts.set(cid,{...stationMapDrafts.get(cid),site:$('mSite').value});stationMapMessage(cid,'Área modificada. Pulsa Guardar mapa.');}
 async function persistStationMap(cid,patch){
- const uid=sessionUser?.id;if(!isAdmin())throw Error('Solo administración puede guardar mapas.');if(!navigator.onLine)throw Error('Necesitas conexión a Internet.');
+ const uid=sessionUser?.id;if(!canEditTechnical())throw Error('Tu perfil no puede guardar mapas.');if(!navigator.onLine)throw Error('Necesitas conexión a Internet.');
  const {data,error}=await sb.from('station_maps').upsert({client_id:cid,...patch},{onConflict:'client_id'}).select('*').single();if(error)throw error;if(sessionUser?.id!==uid)throw Error('La sesión cambió. Vuelve a ingresar.');cacheStationMap(data);return data;
 }
 async function saveStationMap(){const cid=$('mClient').value;if(!cid||stationMapBusy)return;const patch=stationMapDrafts.get(cid);if(!patch)return stationMapMessage(cid,'El mapa no tiene cambios pendientes.');stationMapBusy=true;stationMapMessage(cid,'Guardando mapa en la nube…');try{await persistStationMap(cid,patch);if(stationMapDrafts.get(cid)===patch)stationMapDrafts.delete(cid);stationMapMessage(cid,'Mapa guardado en la nube para los próximos controles.');}catch(e){stationMapMessage(cid,'No se guardó el mapa: '+e.message+' Conserva esta pantalla y vuelve a intentarlo.');}finally{stationMapBusy=false;}}
 async function setMapBackground(e){
- const cid=$('mClient').value,uid=sessionUser?.id,file=e.target.files[0];if(!file)return;if(!isAdmin()||!cid){e.target.value='';return alert('Selecciona primero un cliente.');}if(stationMapBusy)return alert('Espera a que termine el guardado.');
+ const cid=$('mClient').value,uid=sessionUser?.id,file=e.target.files[0];if(!file)return;if(!canEditTechnical()||!cid){e.target.value='';return alert('Selecciona primero un cliente.');}if(stationMapBusy)return alert('Espera a que termine el guardado.');
  stationMapBusy=true;stationMapMessage(cid,'Preparando mapa…');
  try{if(!/^image\/(png|jpeg|webp)$/.test(file.type)||file.size>15*1024*1024)throw Error('Usa una imagen JPG, PNG o WebP de hasta 15 MB.');
  const image=await new Promise((resolve,reject)=>{const r=new FileReader();r.onerror=()=>reject(Error('No se pudo leer el archivo.'));r.onload=()=>{const im=new Image();im.onerror=()=>reject(Error('Imagen inválida.'));im.onload=()=>resolve(im);im.src=r.result;};r.readAsDataURL(file);});
@@ -1537,13 +1551,13 @@ async function setMapBackground(e){
  }catch(err){stationMapMessage(cid,'No se guardó el mapa: '+err.message+' Pulsa Guardar mapa para reintentar.');}finally{stationMapBusy=false;}
 }
 async function addStationFromMap(e){
- if(!isAdmin())return;if(e.target.closest('.station-pin')||stationMapBusy)return;const cid=$('mClient').value;if(!cid)return alert('Selecciona un cliente.');const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*100,y=(e.clientY-r.top)/r.height*100;
+ if(!canEditTechnical())return;if(e.target.closest('.station-pin')||stationMapBusy)return;const cid=$('mClient').value;if(!cid)return alert('Selecciona un cliente.');const r=e.currentTarget.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*100,y=(e.clientY-r.top)/r.height*100;
  const existing=state().stations.filter(s=>s.clientId===cid),num=existing.length+1,code=prompt('Código de estación:',`E${String(num).padStart(2,'0')}`);if(!code?.trim())return;if(existing.some(s=>s.code===code.trim()))return alert('Ese código ya existe. Toca su estación para revisarla.');const uid=sessionUser.id;stationMapBusy=true;
  try{const {data,error}=await sb.from('stations').insert(stationToDb({id:crypto.randomUUID(),clientId:cid,code:code.trim(),x,y,status:'Normal',notes:'',baitHistory:[]})).select('*').single();if(error)throw error;if(sessionUser?.id!==uid)return;cacheStation(data);if($('mClient').value===cid)editStation(data.id);}catch(e){alert('No se guardó la estación: '+e.message);}finally{stationMapBusy=false;}
 }
 async function clearStationMap(){alert('El mapa y sus estaciones se conservan para los próximos controles. Cambia el estado de una estación desde Revisar.');}
 async function saveStationReview(){
- if(!isAdmin())return;const selected=document.querySelector('input[name="baitStatus"]:checked'),id=$('stationEditId').value;if(!selected)return;const btn=$('stationSaveBtn');btn.disabled=true;$('stationSaveStatus').textContent='Guardando revisión…';const uid=sessionUser.id;
+ if(!canEditTechnical())return;const selected=document.querySelector('input[name="baitStatus"]:checked'),id=$('stationEditId').value;if(!selected)return;const btn=$('stationSaveBtn');btn.disabled=true;$('stationSaveStatus').textContent='Guardando revisión…';const uid=sessionUser.id;
  try{const {data:old,error:readError}=await sb.from('stations').select('*').eq('id',id).single();if(readError)throw readError;const s=stationFromDb(old),date=new Date().toISOString(),updated={...s,status:$('stationOperational').value,notes:$('stationNotes').value,baitStatus:selected.value,lastCheck:date.slice(0,10)};if(!['Normal','No encontrada','Obstruida','Dañada'].includes(updated.status))throw Error('Selecciona el estado de la trampa.');updated.baitHistory=[...(s.baitHistory||[]),{date,baitStatus:updated.baitStatus,status:updated.status,notes:updated.notes}];
  const {data,error}=await sb.from('stations').update({status:updated.status,notes:packStationNotes(updated),last_check:updated.lastCheck}).eq('id',id).select('*').single();if(error)throw error;if(sessionUser?.id!==uid)return;cacheStation(data);$('stationDialog').close();stationMapMessage(s.clientId,'Revisión guardada en la nube.');
  }catch(e){$('stationSaveStatus').textContent='No se guardó la revisión: '+e.message;}finally{btn.disabled=false;}
