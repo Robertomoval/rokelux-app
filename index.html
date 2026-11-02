@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-02-field-drafts-r2">
+<meta name="rokelux-build" content="2026-11-02-field-drafts-r4">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -2142,8 +2142,37 @@ const FieldDrafts = (() => {
         if(!d.addedPhotos&&old?.addedPhotos)d.addedPhotos=old.addedPhotos;
         if(!validContext(uid)||$('sigService').value!==d.id)return;
       }
-      if(captureSeq.get(slot)===version)await put(d);
-    }catch(e){failed=true;status('No se guardó el borrador: '+e.message+'. Mantén la pantalla abierta y guarda en la nube.',true);}finally{capturing--;}
+      if(captureSeq.get(slot)===version){await put(d);return true;}
+      return false;
+    }catch(e){failed=true;status('No se guardó el borrador: '+e.message+'. Mantén la pantalla abierta y guarda en la nube.',true);return false;}finally{capturing--;}
+  }
+  function validation(kind){
+    if(!actor())return 'Inicia sesión con un usuario administrativo o técnico para guardar un borrador.';
+    if(restoring)return 'Espera a que termine la recuperación del borrador.';
+    if(kind==='service'){
+      if(!$('sClient')?.value)return 'Selecciona un cliente antes de guardar el borrador.';
+      if(isTech()&&!selectedServiceOrder)return 'Abre primero una orden asignada desde Mis órdenes.';
+      if(!$('service')?.classList.contains('active'))return 'Abre el formulario del servicio que deseas guardar.';
+    }else if(kind==='signatures'){
+      if(!$('sigService')?.value)return 'Selecciona un servicio antes de guardar las firmas como borrador.';
+      if(signatureLoading||signatureLoadedId!==$('sigService').value)return 'Espera a que se carguen las firmas del servicio seleccionado.';
+      if(!state().services.some(s=>s.id===$('sigService').value))return 'No se encontró el servicio. Actualiza los datos desde la nube.';
+    }else return 'No se reconoció el tipo de borrador.';
+    return '';
+  }
+  async function manualSave(kind,button){
+    if(button?.disabled)return;
+    const problem=validation(kind);if(problem){status(problem,true);alert(problem);return false;}
+    const label=button?.textContent;let timeout;
+    if(button){button.disabled=true;button.textContent='Guardando…';}
+    status('Guardando el borrador en este dispositivo…');
+    try{
+      const result=await Promise.race([capture(kind),new Promise(resolve=>{timeout=setTimeout(()=>resolve('timeout'),15000);})]);
+      if(result===true){alert('Borrador guardado en este dispositivo. Puedes encontrarlo en Recuperar borradores. Todavía no se ha enviado a la nube.');return true;}
+      const message=result==='timeout'?'El dispositivo está tardando en responder. No cierres la app: todavía no se pudo confirmar el borrador. Revisa Recuperar borradores antes de salir.':'No se confirmó el borrador. Revisa el mensaje de guardado y vuelve a intentarlo sin cerrar la pantalla.';
+      status(message,true);alert(message);return false;
+    }catch(e){const message='No se pudo guardar el borrador: '+e.message+'. Mantén esta pantalla abierta.';status(message,true);alert(message);return false;}
+    finally{clearTimeout(timeout);if(button){button.disabled=false;button.textContent=label;}}
   }
   function schedule(event){
     if(restoring||!actor())return;
@@ -2212,7 +2241,7 @@ const FieldDrafts = (() => {
       (d.addedPhotos||[]).every(p=>(row.photos||[]).includes(p))){await remove(d);restoredDraftPhotos.delete(uid+':'+row.id);}
     const form=await read(uid,'service',row.id);
     if(form&&form.values.sAreas===(row.areas||'')&&form.values.sNotes===(row.notes||'')&&form.values.sDate===row.service_date&&form.values.sType===row.service_type&&form.values.sOtherProduct===(row.other_product||'')&&JSON.stringify(form.pests)===JSON.stringify(row.pests||[])&&JSON.stringify(form.products)===JSON.stringify(row.products||[])&&JSON.stringify(form.activity)===JSON.stringify(row.activity||[])&&(form.photos||[]).every(p=>(row.photos||[]).includes(p))){await remove(form);formIds.delete(uid+':'+(form.order?.id||form.clientId));}
-    if(validContext(uid))status('Último guardado confirmado en la nube. Puedes consultar otros borradores del dispositivo.');
+    if(validContext(uid))status('Información del servicio comprobada en la nube. Los borradores que no coinciden se conservan en Recuperar borradores.');
   }
   function install(){
     for(const screen of ['home','ordersHome']){const e=$(screen);if(e){const button=document.createElement('button');button.type='button';button.className='btn secondary';button.setAttribute('data-show-drafts','');button.textContent='Recuperar borradores de este dispositivo';e.prepend(button);}}
@@ -2225,7 +2254,7 @@ const FieldDrafts = (() => {
     document.addEventListener('click',event=>{
       const b=event.target.closest('button');if(!b)return;
       if(b.hasAttribute('data-show-drafts'))void show();
-      if(b.hasAttribute('data-save-local'))void capture(b.dataset.saveLocal);
+      if(b.hasAttribute('data-save-local'))void manualSave(b.dataset.saveLocal,b);
       if(b.hasAttribute('data-close-drafts'))dialog.close();
       if(b.dataset.draftId)void restore(b.dataset.draftKind,b.dataset.draftId);
     });
@@ -2233,10 +2262,53 @@ const FieldDrafts = (() => {
     window.addEventListener('offline',()=>status('Sin conexión. Conserva el borrador local; todavía no está confirmado en la nube.'));
     window.addEventListener('online',()=>status('Conexión recuperada. Revisa el borrador y pulsa Guardar para confirmarlo en la nube.'));
   }
-  return {put,list,read,remove,capture,show,restore,confirmed,install,baseline,serviceBaseline,key};
+  return {put,list,read,remove,capture,manualSave,validation,show,restore,confirmed,install,baseline,serviceBaseline,key};
 })();
 const restoredDraftPhotos=new Map();
 document.addEventListener('DOMContentLoaded',()=>FieldDrafts.install());
+
+// Descriptive counts only: historical records are not equivalent to infestation rates.
+const ControlSummary=(()=>{
+ const faults=['No encontrada','Obstruida','Dañada'];
+ function summarize(stations){
+  const months=new Map(),seen=new Set();
+  const result={total:stations.length,unrecorded:0,attention:[],months:[]};
+  for(const s of stations){
+   if(faults.includes(s.status))result.attention.push({id:s.id,clientId:s.clientId,code:s.code,status:s.status});
+   if(!s.lastCheck||!s.baitStatus)result.unrecorded++;
+   for(const h of s.baitHistory||[]){
+    if(!/^\d{4}-\d{2}-\d{2}T/.test(h.date||''))continue;
+    const id=JSON.stringify([s.id,h.date,h.baitStatus,h.status,h.notes]);if(seen.has(id))continue;seen.add(id);
+    const month=h.date.slice(0,7);if(!months.has(month))months.set(month,{month,records:0,activity:0,noNovelty:0,unavailable:0,unknown:0,stations:new Set()});
+    const m=months.get(month);m.records++;m.stations.add(s.id);
+    if(faults.includes(h.status)){m.unavailable++;continue;}
+    if(!['Normal','Operativa'].includes(h.status)){m.unknown++;continue;}
+    if(['Picada','Comida','Picado','Comido total'].includes(h.baitStatus))m.activity++;
+    else if(['Sin novedad','Normal'].includes(h.baitStatus))m.noNovelty++;
+    else m.unknown++;
+   }
+  }
+  result.months=[...months.values()].sort((a,b)=>b.month.localeCompare(a.month)).map(m=>({...m,stations:m.stations.size}));return result;
+ }
+ function stationHtml(stations){
+  const s=summarize(stations);
+  const rows=s.months.slice(0,12).map(m=>`<tr><td>${esc(m.month)}</td><td>${m.stations}</td><td>${m.records}</td><td>${m.activity}</td><td>${m.noNovelty}</td><td>${m.unavailable}</td><td>${m.unknown}</td></tr>`).join('');
+  return `<h3>Seguimiento de estaciones</h3><p>${s.total} estaciones · ${s.attention.length} con incidencias · ${s.unrecorded} sin revisión o cebo registrado.</p>${s.attention.length?'<ul>'+s.attention.map(x=>'<li>'+esc(x.code)+' · '+esc(x.status)+'</li>').join('')+'</ul>':'<p>No hay estaciones marcadas como dañadas, obstruidas o no encontradas.</p>'}<h4>Revisiones registradas por mes</h4><div style="overflow:auto"><table style="width:100%;text-align:left"><thead><tr><th>Mes UTC</th><th>Estaciones distintas</th><th>Registros</th><th>Picada / Comida</th><th>Sin novedad</th><th>Con incidencias</th><th>Sin clasificar</th></tr></thead><tbody>${rows||'<tr><td colspan="7">Todavía no hay historial de revisiones registrado.</td></tr>'}</tbody></table></div><p class="note">Los conteos corresponden a registros, no a una tasa de infestación. Una estación puede revisarse varias veces. Las estaciones no encontradas, obstruidas o dañadas se separan del resultado del cebo. No se interpreta la ausencia de registros como ausencia de plagas.</p>`;
+ }
+ function render(){
+  const panel=$('stationControlSummary');if(panel){const cid=isClient()?currentClientId():$('mClient')?.value;panel.innerHTML=cid?stationHtml(state().stations.filter(s=>s.clientId===cid)):'Selecciona un cliente para consultar su seguimiento.';}
+  const admin=$('adminControlSummary');if(!admin)return;admin.hidden=!isAdmin();if(!isAdmin())return;
+  const d=state(),s=summarize(d.stations),unsigned=d.services.filter(x=>!x.technicianSignature||!x.clientSignature).length,supervisor=d.services.filter(x=>x.technicianSignature&&x.clientSignature&&!x.supervisorSignature).length;
+  admin.innerHTML=`<h3>Pendientes de control</h3><p><b>${unsigned}</b> servicios sin ambas firmas del certificado · <b>${supervisor}</b> servicios firmados sin firma del supervisor.</p><p><b>${s.attention.length}</b> estaciones con incidencias · <b>${s.unrecorded}</b> sin revisión o cebo registrado.</p>${s.attention.length?'<ul>'+s.attention.slice(0,20).map(x=>'<li>'+esc(clientName(x.clientId))+' · '+esc(x.code)+' · '+esc(x.status)+'</li>').join('')+'</ul>':''}<p class="note">Resumen de los datos cargados de la nube. Los documentos firmados deben consultarse en el servicio para comprobar su envío.</p><button type="button" class="btn secondary" onclick="go('stations')">Revisar estaciones</button><button type="button" class="btn ghost" onclick="go('certificates')">Revisar certificados</button>`;
+ }
+ function install(){
+  const panel=document.createElement('div');panel.id='stationControlSummary';panel.className='panel';$('stations').appendChild(panel);
+  const admin=document.createElement('div');admin.id='adminControlSummary';admin.className='panel';admin.hidden=true;$('home').appendChild(admin);
+  const oldRender=renderStationMap;renderStationMap=function(){oldRender();render();};render();
+ }
+ return {summarize,stationHtml,render,install};
+})();
+document.addEventListener('DOMContentLoaded',()=>ControlSummary.install());
 
 </script>
 </body></html>
