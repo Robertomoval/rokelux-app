@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-02-field-drafts">
+<meta name="rokelux-build" content="2026-11-02-field-drafts-r2">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -2074,7 +2074,7 @@ const FieldDrafts = (() => {
   const prefix='field-draft-v1:';
   let chain=Promise.resolve(),pending=0,capturing=0,restoring=false,failed=false;
   const formIds=new Map(),captureSeq=new Map();
-  const fields=['sClient','sDate','sType','sAreas','sNotes','sOtherProduct'];
+  const fields=['sClient','sDate','sType','sAreas','sNotes','sOtherProduct','sOtherPest'];
   const signatureFields=['sigTechName','sigClientName','sigClientRole','sigSupervisorName'];
   const signatureKeys=['tech','client','supervisor'];
   const key=(uid,kind,id)=>prefix+uid+':'+kind+':'+id;
