@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-02-field-drafts-r4">
+<meta name="rokelux-build" content="2026-11-02-cloud-drafts-r5">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -2123,7 +2123,7 @@ const FieldDrafts = (() => {
     return {schema:1,uid,kind:'signatures',id,clientId:service.clientId,name:clientName(service.clientId),savedAt:new Date().toISOString(),baseline:baseline(service),
       values:Object.fromEntries(signatureFields.map(id=>[id,$(id)?.value||''])),signatures:Object.fromEntries(signatureKeys.map(k=>[k,signaturePads[k]?.canvas.dataset.signed?signaturePads[k].canvas.toDataURL('image/png'):'']))};
   }
-  async function capture(kind){
+  async function capture(kind,sink){
     if(restoring)return;
     const uid=actor();if(!uid)return;
     const d=kind==='service'?currentServiceDraft():currentSignatureDraft();if(!d)return;
@@ -2142,7 +2142,7 @@ const FieldDrafts = (() => {
         if(!d.addedPhotos&&old?.addedPhotos)d.addedPhotos=old.addedPhotos;
         if(!validContext(uid)||$('sigService').value!==d.id)return;
       }
-      if(captureSeq.get(slot)===version){await put(d);return true;}
+      if(captureSeq.get(slot)===version){if(sink)await sink(d);else await put(d);return true;}
       return false;
     }catch(e){failed=true;status('No se guardó el borrador: '+e.message+'. Mantén la pantalla abierta y guarda en la nube.',true);return false;}finally{capturing--;}
   }
@@ -2190,11 +2190,11 @@ const FieldDrafts = (() => {
       box.innerHTML=rows.length?rows.map(d=>`<div class="item"><div class="meta"><b>${esc(d.name)}</b><small>${d.kind==='service'?'Formulario y fotografías':'Firmas y fotografías'} · ${esc(new Date(d.savedAt).toLocaleString('es-EC'))}<br>Guardado en este dispositivo</small></div><button type="button" class="btn secondary" data-draft-kind="${d.kind}" data-draft-id="${esc(d.id)}">Recuperar</button></div>`).join(''):'No hay borradores pendientes de este usuario en este dispositivo.';
     }catch(e){box.textContent='No se pudieron leer los borradores: '+e.message;}
   }
-  async function restore(kind,id){
+  async function restore(kind,id,cloudDraft){
     const uid=actor();if(!uid||restoring)return;
     restoring=true;
     try{
-      const d=await read(uid,kind,id);if(!d||!validContext(uid))return;
+      const d=cloudDraft||await read(uid,kind,id);if(!d||d.uid!==uid||d.kind!==kind||d.id!==id||!validContext(uid))return;
       if(!navigator.onLine)throw Error('Conéctate para verificar el acceso al cliente antes de recuperar el borrador. El borrador permanece guardado.');
       if(kind==='service'){
         if(d.order){await Orders.open(d.order.id);if(selectedServiceOrder?.id!==d.order.id)throw Error('La orden ya no está disponible.');
@@ -2267,6 +2267,7 @@ const FieldDrafts = (() => {
 const restoredDraftPhotos=new Map();
 document.addEventListener('DOMContentLoaded',()=>FieldDrafts.install());
 
+
 // Descriptive counts only: historical records are not equivalent to infestation rates.
 const ControlSummary=(()=>{
  const faults=['No encontrada','Obstruida','Dañada'];
@@ -2309,6 +2310,75 @@ const ControlSummary=(()=>{
  return {summarize,stationHtml,render,install};
 })();
 document.addEventListener('DOMContentLoaded',()=>ControlSummary.install());
+
+// Private cloud drafts never create services, confirm signatures or send documents.
+const CloudDrafts=(()=>{
+ const actor=()=>sessionUser&&canEditTechnical()?sessionUser.id:null;
+ const metaKey=(uid,kind,id)=>'field-cloud-version:'+uid+':'+kind+':'+id;
+ let busy=false;const versions=new Map();
+ function message(text){document.querySelectorAll('[data-cloud-draft-status]').forEach(e=>e.textContent=text);}
+ function canonical(value){if(Array.isArray(value))return value.map(canonical);if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).filter(k=>k!=='savedAt').sort().map(k=>[k,canonical(value[k])]));return value;}
+ async function digest(d){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(canonical(d))));return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('');}
+ const metadata=async(uid,kind,id)=>{const k=metaKey(uid,kind,id);if(versions.has(k))return versions.get(k);try{return await cacheTransaction('readonly',s=>s.get(k));}catch{return null;}};
+ const remember=async(uid,kind,id,meta)=>{const k=metaKey(uid,kind,id);versions.set(k,meta);try{await cacheTransaction('readwrite',s=>s.put(meta,k));}catch{/* Server copy remains available even if local quota is exhausted. */}};
+ async function save(kind,button){
+  if(busy)return;const uid=actor(),problem=FieldDrafts.validation(kind);if(problem){alert(problem);return;}
+  if(!navigator.onLine){alert('Sin conexión. Guarda un borrador local y pulsa Guardar borrador en la nube cuando tengas internet.');return;}
+  busy=true;button.disabled=true;const label=button.textContent;button.textContent='Guardando en la nube…';
+  message('Guardando. Espera la confirmación antes de cerrar.');
+  try{
+   let d;if(!await FieldDrafts.capture(kind,value=>{d=value;}))throw Error('No se pudieron preparar los datos del borrador.');
+   if(!d||actor()!==uid)throw Error('La sesión cambió.');const id=d.id;
+   try{await FieldDrafts.put(d);}catch{/* Cloud saving must work when local storage is full. */}
+   const meta=await metadata(uid,kind,id),hash=await digest(d);
+   if(actor()!==uid)throw Error('La sesión cambió.');
+   const r=await sb.rpc('rokelux_save_field_draft',{p_kind:kind,p_id:id,p_client:d.clientId,p_payload:d,p_revision:meta?.revision||0});
+   if(r.error)throw r.error;
+   // Remember the exact submitted version. Later edits remain unsynchronized.
+   await remember(uid,kind,id,{revision:r.data,hash});
+   if(actor()!==uid)return;
+   let latest;await FieldDrafts.capture(kind,value=>{latest=value;});const changed=latest&&await digest(latest)!==hash;
+   const text=changed?'Se guardó la versión enviada en la nube, pero hiciste cambios después. Vuelve a guardar para incluirlos.':'Borrador guardado en la nube. Disponible desde otro dispositivo con este mismo usuario, en Borradores en la nube. Todavía no finaliza el servicio ni envía documentos.';
+   message(text);alert(text);
+  }catch(e){const text='No se confirmó el guardado en la nube: '+e.message+'. Mantén la pantalla abierta. Si perdiste conexión, vuelve a intentar con los mismos datos.';message(text);alert(text);}
+  finally{busy=false;button.disabled=false;button.textContent=label;}
+ }
+ async function show(){
+  const uid=actor();if(!uid)return;const box=$('cloudDraftList');$('cloudDraftDialog').showModal();box.textContent='Consultando la nube…';
+  try{
+   const r=await sb.from('rokelux_field_drafts').select('id,kind,client_id,revision,updated_at').order('updated_at',{ascending:false}).limit(100);
+   if(r.error)throw r.error;if(actor()!==uid){box.textContent='La sesión cambió.';return;}
+   box.innerHTML=r.data.length?r.data.map(d=>`<div class="item"><div class="meta"><b>${esc(clientName(d.client_id))}</b><small>${d.kind==='service'?'Formulario y fotografías':'Firmas y fotografías'} · ${esc(new Date(d.updated_at).toLocaleString('es-EC'))} · versión ${Number(d.revision)}</small></div><button class="btn secondary" type="button" data-cloud-restore="${esc(d.id)}" data-cloud-kind="${d.kind}">Recuperar desde la nube</button></div>`).join(''):'No hay borradores en la nube para este usuario.';
+  }catch(e){box.textContent='No se pudo consultar la nube: '+e.message;}
+ }
+ async function restore(kind,id,button){
+  if(busy)return;const uid=actor();if(!uid)return;busy=true;button.disabled=true;
+  try{
+   const r=await sb.from('rokelux_field_drafts').select('*').eq('kind',kind).eq('id',id).single();if(r.error)throw r.error;
+   if(actor()!==uid)return;
+   const d=r.data.payload;if(d.uid!==uid||d.id!==id||d.kind!==kind)throw Error('Borrador inválido');
+   let local;try{local=await FieldDrafts.read(uid,kind,id);}catch{}const meta=await metadata(uid,kind,id),hash=await digest(d);
+   if(local){const localHash=await digest(local);if(localHash!==hash&&localHash!==meta?.hash)throw Error('Hay cambios locales diferentes que todavía no se guardaron en la nube. Se conservan ambas versiones. Revisa el borrador local antes de sustituirlo');}
+   if(actor()!==uid)return;
+   try{await FieldDrafts.put(d);}catch{}await remember(uid,kind,id,{revision:r.data.revision,hash});
+   $('cloudDraftDialog').close();await FieldDrafts.restore(kind,id,d);
+  }catch(e){alert('No se recuperó el borrador: '+e.message);}finally{busy=false;button.disabled=false;}
+ }
+ function install(){
+  for(const screen of ['home','ordersHome','service','certificateSign']){
+   const parent=$(screen);if(!parent)continue;
+   const box=document.createElement('div');box.className='panel';
+   const kind=screen==='service'?'service':'signatures';
+   box.innerHTML='<b>Continuar desde cualquier dispositivo</b><p data-cloud-draft-status role="status">Los borradores enviados a la nube están disponibles con el mismo usuario. La copia local solo sirve en este navegador.</p><div class="actions">'+(['service','certificateSign'].includes(screen)?'<button class="btn primary" type="button" data-cloud-save="'+kind+'">Guardar borrador en la nube</button>':'')+'<button class="btn secondary" type="button" data-cloud-list>Borradores en la nube</button></div>';
+   parent.prepend(box);
+  }
+  const modal=document.createElement('dialog');modal.id='cloudDraftDialog';modal.className='panel';modal.style.cssText='color:var(--text);width:min(740px,95vw);max-height:85vh;overflow:auto';modal.innerHTML='<h2>Borradores en la nube</h2><p>Últimos 100 borradores de tu usuario. Recuperar no finaliza servicios ni envía correos. Se comprueba de nuevo el acceso al cliente y a la orden.</p><div id="cloudDraftList"></div><button class="btn ghost" type="button" data-cloud-close>Cerrar</button>';document.body.appendChild(modal);
+  document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.cloudSave)void save(b.dataset.cloudSave,b);if(b.hasAttribute('data-cloud-list'))void show();if(b.hasAttribute('data-cloud-close'))modal.close();if(b.dataset.cloudRestore)void restore(b.dataset.cloudKind,b.dataset.cloudRestore,b);});
+  window.addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnValue='';}});
+ }
+ return {save,show,restore,install,canonical,digest};
+})();
+document.addEventListener('DOMContentLoaded',()=>CloudDrafts.install());
 
 </script>
 </body></html>
