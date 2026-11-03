@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-02-cloud-drafts-r5">
+<meta name="rokelux-build" content="2026-11-03-station-reviews-r6">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -2329,7 +2329,7 @@ const CloudDrafts=(()=>{
   try{
    let d;if(!await FieldDrafts.capture(kind,value=>{d=value;}))throw Error('No se pudieron preparar los datos del borrador.');
    if(!d||actor()!==uid)throw Error('La sesión cambió.');const id=d.id;
-   try{await FieldDrafts.put(d);}catch{/* Cloud saving must work when local storage is full. */}
+   let localSaved=false;try{await FieldDrafts.put(d);localSaved=true;}catch{/* Cloud saving must work when local storage is full. */}
    const meta=await metadata(uid,kind,id),hash=await digest(d);
    if(actor()!==uid)throw Error('La sesión cambió.');
    const r=await sb.rpc('rokelux_save_field_draft',{p_kind:kind,p_id:id,p_client:d.clientId,p_payload:d,p_revision:meta?.revision||0});
@@ -2339,6 +2339,7 @@ const CloudDrafts=(()=>{
    if(actor()!==uid)return;
    let latest;await FieldDrafts.capture(kind,value=>{latest=value;});const changed=latest&&await digest(latest)!==hash;
    const text=changed?'Se guardó la versión enviada en la nube, pero hiciste cambios después. Vuelve a guardar para incluirlos.':'Borrador guardado en la nube. Disponible desde otro dispositivo con este mismo usuario, en Borradores en la nube. Todavía no finaliza el servicio ni envía documentos.';
+   document.querySelectorAll('[data-field-draft-status]').forEach(e=>e.textContent=changed?'Hay cambios posteriores pendientes de guardar en la nube.':localSaved?'Copia local conservada. Esta versión también está guardada en la nube.':'Esta versión está guardada en la nube. No se pudo conservar una copia local.');
    message(text);alert(text);
   }catch(e){const text='No se confirmó el guardado en la nube: '+e.message+'. Mantén la pantalla abierta. Si perdiste conexión, vuelve a intentar con los mismos datos.';message(text);alert(text);}
   finally{busy=false;button.disabled=false;button.textContent=label;}
@@ -2379,6 +2380,29 @@ const CloudDrafts=(()=>{
  return {save,show,restore,install,canonical,digest};
 })();
 document.addEventListener('DOMContentLoaded',()=>CloudDrafts.install());
+
+const StationReviews=(()=>{
+ const attempts=new Map(),baselines=new Map();let busy=false,generation=0,original;
+ const actor=()=>sessionUser?.id;
+ function disable(value){$('stationSaveBtn').disabled=value;$('stationNotes').disabled=value;$('stationOperational').disabled=value;document.querySelectorAll('input[name="baitStatus"]').forEach(e=>e.disabled=value);}
+ // The exact server notes are read when the dialog opens, not when the user submits.
+ async function loadBaseline(id){const uid=actor(),version=++generation;disable(true);$('stationSaveStatus').textContent='Cargando la última revisión de la nube…';try{const r=await sb.from('stations').select('*').eq('id',id).single();if(r.error)throw r.error;if(actor()===uid&&$('stationEditId').value===id&&generation===version&&$('stationDialog').open){cacheStation(r.data);original(id);baselines.set(uid+':'+id,{status:r.data.status,notes:r.data.notes});disable(false);}}catch(e){if(actor()===uid&&$('stationEditId').value===id&&generation===version){baselines.delete(uid+':'+id);$('stationSaveStatus').textContent='No se pudo comprobar la versión de la estación: '+e.message+'. Cierra y vuelve a abrir para reintentar.';}}}
+ async function save(){
+  if(!canEditTechnical()||busy)return;const uid=actor(),id=$('stationEditId').value,selected=document.querySelector('input[name="baitStatus"]:checked');
+  if(!selected)return;const baseline=baselines.get(uid+':'+id);if(!baseline){$('stationSaveStatus').textContent='Espera la carga de la estación o vuelve a abrirla antes de guardar.';return;}
+  const values={p_station:id,p_status:$('stationOperational').value,p_bait:selected.value,p_notes:$('stationNotes').value};
+  if(values.p_notes.length>4000){$('stationSaveStatus').textContent='Usa hasta 4000 caracteres en observaciones.';return;}
+  const key=uid+':'+id,previous=attempts.get(key),fingerprint=JSON.stringify(values);
+  const attempt=previous?.fingerprint===fingerprint?previous:{fingerprint,payload:{...values,p_id:crypto.randomUUID(),p_expected_notes:baseline.notes,p_expected_status:baseline.status}};attempts.set(key,attempt);
+  busy=true;disable(true);$('stationSaveStatus').textContent='Guardando revisión en la nube…';
+  try{const r=await sb.rpc('rokelux_review_station',attempt.payload);if(r.error)throw r.error;if(actor()!==uid)return;attempts.delete(key);cacheStation(r.data);$('stationDialog').close();stationMapMessage(r.data.client_id,'Revisión guardada en la nube. Historial conservado para todos los dispositivos.');}
+  catch(e){if(actor()===uid)$('stationSaveStatus').textContent='No se confirmó la revisión: '+e.message+'. Tus datos siguen en este formulario.';}
+  finally{busy=false;disable(false);}
+ }
+ function install(){original=editStation;editStation=function(id){if(!canEditTechnical())return;const result=original(id);if($('stationEditId').value!==id)return result;baselines.delete(actor()+':'+id);attempts.delete(actor()+':'+id);void loadBaseline(id);return result;};saveStationReview=save;}
+ return {save,install,loadBaseline};
+})();
+document.addEventListener('DOMContentLoaded',()=>StationReviews.install());
 
 </script>
 </body></html>
