@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-03-station-qr-r7">
+<meta name="rokelux-build" content="2026-11-03-station-qr-r8">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -15079,14 +15079,15 @@ const StationQR=(()=>{
  }
  async function print(){
   const cid=$('mClient').value;if(!canEditTechnical()||!cid)return alert('Selecciona un cliente autorizado.');
-  const uid=sessionUser.id,w=window.open('','_blank');if(!w)return alert('Permite abrir la vista previa de etiquetas.');w.document.write('<p>Preparando etiquetas guardadas en la nube…</p>');w.document.close();
-  try{const r=await sb.from('stations').select('id,code').eq('client_id',cid).order('code');if(r.error)throw r.error;if(sessionUser?.id!==uid)throw Error('La sesión cambió');if(!r.data.length)throw Error('El cliente no tiene estaciones guardadas');const html=labelsHtml(r.data,clientName(cid));w.document.open();w.document.write(html);w.document.close();}catch(e){w.close();alert('No se generaron las etiquetas: '+e.message);}
+  const uid=sessionUser.id,preview=$('stationQrPreview'),frame=$('stationQrFrame');frame.srcdoc='<p>Preparando etiquetas guardadas en la nube…</p>';preview.showModal();
+  try{const r=await sb.from('stations').select('id,code').eq('client_id',cid).order('code');if(r.error)throw r.error;if(sessionUser?.id!==uid)throw Error('La sesión cambió');if(!r.data.length)throw Error('El cliente no tiene estaciones guardadas');frame.srcdoc=labelsHtml(r.data,clientName(cid)).replace('<button onclick="window.close()">Cerrar</button>','');}catch(e){preview.close();alert('No se generaron las etiquetas: '+e.message);}
  }
  function route(){if(!sessionUser?.id||!canEditTechnical())return;const id=parse(origin+'/'+location.hash);if(!id)return;const key=sessionUser.id+':'+id;if(key===handled||opening)return;handled=key;$('stationQrInput').value=link(id);void open(id);}
  function install(){
   const host=$('stations');if(!host)return;const panel=document.createElement('div');panel.className='panel';panel.innerHTML='<h3>Identificar estación</h3><p>Escanea la etiqueta con la cámara de tu celular para abrir la estación. También puedes escribir su código o pegar el enlace. Siempre se comprueba tu acceso al cliente.</p><label for="stationQrInput">Código de estación o enlace QR</label><input id="stationQrInput" placeholder="E01 o enlace de la etiqueta" autocomplete="off"><div class="actions"><button class="btn primary" type="button" data-qr-find>Abrir estación</button><button class="btn secondary" type="button" data-qr-print>Imprimir etiquetas QR</button></div><p id="stationQrStatus" class="note" role="status"></p>';host.prepend(panel);
   const photo=document.createElement('label');photo.textContent='Leer QR desde una foto';const input=document.createElement('input');input.type='file';input.accept='image/*';input.setAttribute('capture','environment');input.addEventListener('change',()=>void fromPhoto(input));photo.appendChild(input);panel.appendChild(photo);
-  document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.hasAttribute('data-qr-find'))void fromInput();if(b.hasAttribute('data-qr-print'))void print();});
+  const preview=document.createElement('dialog');preview.id='stationQrPreview';preview.className='panel';preview.style.cssText='width:min(960px,98vw);max-height:95vh;color:var(--text)';preview.innerHTML='<h3>Etiquetas QR de estaciones</h3><button type="button" class="btn secondary" data-qr-close>Cerrar vista previa</button><iframe id="stationQrFrame" title="Etiquetas QR para imprimir" style="width:100%;height:75vh;border:0;background:white;margin-top:12px"></iframe>';document.body.appendChild(preview);
+  document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.hasAttribute('data-qr-find'))void fromInput();if(b.hasAttribute('data-qr-print'))void print();if(b.hasAttribute('data-qr-close'))preview.close();});
   $('stationQrInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();void fromInput();}});
   const original=renderAll;renderAll=function(...args){const result=original.apply(this,args);panel.hidden=!canEditTechnical();queueMicrotask(route);return result;};panel.hidden=!canEditTechnical();window.addEventListener('hashchange',()=>{handled='';route();});route();
  }
