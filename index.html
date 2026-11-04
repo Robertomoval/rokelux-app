@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-03-actions-r10">
+<meta name="rokelux-build" content="2026-11-04-actions-dashboard-r11">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -15099,10 +15099,22 @@ document.addEventListener('DOMContentLoaded',()=>StationQR.install());
 ;
 const FollowUp=(()=>{
  const names={pending:'Pendiente',progress:'En proceso',review:'Por validar',verified:'Validada',cancelled:'Cancelada'};
- let current=null,busy=false,loadVersion=0,listVersion=0,lastActor=null;
+ let current=null,busy=false,loadVersion=0,listVersion=0,lastActor=null,dashboardVersion=0;
  const actor=()=>sessionUser&&canEditTechnical()?sessionUser.id:null;
  const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
  const overdue=r=>!['verified','cancelled'].includes(r.status)&&r.due_date<today();
+ async function dashboard(){
+  const box=$('actionDashboard'),uid=actor(),version=++dashboardVersion;if(!box)return;
+  box.hidden=!isAdmin();if(!uid||!isAdmin()){box.textContent='';return;}
+  box.textContent='Consultando recomendaciones en la nube…';
+  try{
+   const base=()=>sb.from('rokelux_actions').select('id',{count:'exact',head:true});
+   const results=await Promise.all([base().in('status',['pending','progress','review']),base().in('status',['pending','progress','review']).lt('due_date',today()),base().eq('status','review')]);
+   if(uid!==actor()||!isAdmin()||version!==dashboardVersion)return;
+   for(const r of results){if(r.error)throw r.error;if(!Number.isInteger(r.count))throw Error('No se recibió el total actualizado');}
+   box.innerHTML='<h3>Seguimiento de recomendaciones</h3><p><b>'+results[0].count+'</b> abiertas · <b>'+results[1].count+'</b> vencidas · <b>'+results[2].count+'</b> por validar.</p><p class="note">Totales consultados en la nube. Las recomendaciones canceladas y validadas no se cuentan como pendientes.</p><button type="button" class="btn secondary" data-followup-open>Revisar recomendaciones</button><button type="button" class="btn ghost" data-action-dashboard-refresh>Actualizar totales</button>';
+  }catch(e){if(uid===actor()&&version===dashboardVersion)box.innerHTML='<h3>Seguimiento de recomendaciones</h3><p>No se pudieron actualizar los totales. '+esc(e.message)+'</p><button type="button" class="btn secondary" data-action-dashboard-refresh>Reintentar consulta</button>';}
+ }
  function options(){const e=$('actionClient');if(!e)return;if(lastActor!==actor()){lastActor=actor();current=null;loadVersion++;listVersion++;$('actionDialog')?.close();$('actionList').textContent='Actualiza para consultar las acciones de tu usuario.';$('actionSummary').textContent='';}const v=e.value;e.innerHTML='<option value="">Todos mis clientes</option>'+state().clients.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('');e.value=v;document.querySelectorAll('[data-followup-open]').forEach(b=>b.hidden=!canEditTechnical());}
  async function refresh(){const uid=actor(),version=++listVersion;if(!uid)return;const box=$('actionList');box.textContent='Cargando acciones guardadas en la nube…';
   try{let q=sb.from('rokelux_actions').select('id,client_id,title,responsible,due_date,status,revision,updated_at').order('due_date').limit(100);if($('actionClient').value)q=q.eq('client_id',$('actionClient').value);const r=await q;if(r.error)throw r.error;if(actor()!==uid||version!==listVersion)return;
@@ -15123,7 +15135,7 @@ const FollowUp=(()=>{
    if(!payload.p_title||!payload.p_responsible||!payload.p_due)throw Error('Completa título, responsable y fecha límite.');
    const fingerprint=JSON.stringify(payload);if(record.fingerprint!==fingerprint){record.fingerprint=fingerprint;record.request=crypto.randomUUID();}payload.p_request=record.request;
    if(uid!==actor())throw Error('La sesión cambió');const r=await sb.rpc('rokelux_save_action',payload);if(r.error)throw r.error;if(uid!==actor())return;
-   $('actionDialog').close();current=null;await refresh();$('actionSummary').textContent='Acción guardada en la nube. '+$('actionSummary').textContent;
+   $('actionDialog').close();current=null;await refresh();void dashboard();$('actionSummary').textContent='Acción guardada en la nube. '+$('actionSummary').textContent;
   }catch(e){$('actionSaveStatus').textContent='No se confirmó el guardado: '+e.message+'. Conserva el formulario abierto.';}finally{busy=false;controls.forEach(e=>e.disabled=false);}
  }
  async function history(){if(!current?.revision)return;const uid=actor(),id=current.id;$('actionAudit').textContent='Cargando historial…';try{const r=await sb.from('rokelux_action_changes').select('revision,changed_at,summary').eq('action_id',id).order('revision',{ascending:false}).limit(30);if(r.error)throw r.error;if(uid!==actor()||current?.id!==id)return;$('actionAudit').innerHTML=r.data.map(x=>'<p>Versión '+Number(x.revision)+' · '+esc(new Date(x.changed_at).toLocaleString('es-EC'))+' · '+esc(names[x.summary.status])+'<br>'+esc(x.summary.responsible)+' · límite '+esc(x.summary.due_date)+'<br>'+esc(x.summary.notes||'Sin observaciones')+'</p>').join('')||'Sin cambios registrados.';}catch(e){$('actionAudit').textContent=e.message;}}
@@ -15144,12 +15156,14 @@ const FollowUp=(()=>{
   const page=document.createElement('section');page.id='followUp';page.className='screen';page.innerHTML='<div class="panel"><h2>Recomendaciones y acciones correctivas</h2><p>Registra qué debe corregirse, quién es responsable y cuándo debe completarse. Administración valida el cierre después de revisar la evidencia.</p><label for="actionClient">Cliente</label><select id="actionClient"></select><div class="actions"><button type="button" class="btn primary" data-followup-new>Nueva recomendación</button><button type="button" class="btn secondary" data-followup-refresh>Actualizar desde la nube</button></div><p id="actionSummary" role="status"></p><div id="actionList"></div></div>';document.querySelector('main').appendChild(page);
   const modal=document.createElement('dialog');modal.id='actionDialog';modal.className='panel';modal.style.cssText='color:var(--text);width:min(720px,95vw);max-height:90vh;overflow:auto';modal.innerHTML='<h3>Seguimiento de recomendación</h3><form id="actionForm"><label for="actionTitle">Qué debe corregirse</label><input id="actionTitle" maxlength="200" required placeholder="Ej. Sellar acceso bajo la puerta de bodega"><label for="actionResponsible">Responsable</label><input id="actionResponsible" maxlength="200" required placeholder="Nombre y cargo"><label for="actionDue">Fecha límite</label><input id="actionDue" type="date" required><label for="actionStatus">Estado</label><select id="actionStatus"></select><label for="actionNotes">Avance y observaciones</label><textarea id="actionNotes" maxlength="4000"></textarea><label for="actionFile">Evidencia fotográfica (hasta 4 fotos)</label><input id="actionFile" type="file" accept="image/*" multiple><div id="actionPhotos" class="photo-grid"></div><p id="actionSaveStatus" role="status"></p><div class="actions"><button id="actionSave" class="btn primary" type="submit">Guardar en la nube</button><button class="btn secondary" type="button" data-action-history>Ver historial</button><button class="btn ghost" type="button" data-action-close>Cerrar</button></div></form><div id="actionAudit"></div>';document.body.appendChild(modal);
   for(const id of ['home','ordersHome']){const h=$(id);if(h){const b=document.createElement('button');b.type='button';b.className='btn secondary';b.setAttribute('data-followup-open','');b.textContent='Seguimiento de recomendaciones';h.prepend(b);}}
-  const oldAllowed=allowedScreen;allowedScreen=function(id){return id==='followUp'?!!actor():oldAllowed(id);};const oldRender=renderAll;renderAll=function(...args){const result=oldRender.apply(this,args);options();return result;};options();
+  const dash=document.createElement('div');dash.id='actionDashboard';dash.className='panel';dash.hidden=true;$('home').appendChild(dash);
+  document.addEventListener('click',e=>{if(e.target.closest('[data-action-dashboard-refresh]'))void dashboard();});
+  const oldAllowed=allowedScreen;allowedScreen=function(id){return id==='followUp'?!!actor():oldAllowed(id);};const oldRender=renderAll;renderAll=function(...args){const result=oldRender.apply(this,args);options();void dashboard();return result;};options();void dashboard();
   $('actionClient').addEventListener('change',()=>void refresh());$('actionForm').addEventListener('submit',e=>{e.preventDefault();void save();});
   document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.hasAttribute('data-followup-open')){go('followUp');void refresh();}if(b.hasAttribute('data-followup-refresh'))void refresh();if(b.hasAttribute('data-followup-new'))create();if(b.dataset.followupEdit)void edit(b.dataset.followupEdit);if(b.hasAttribute('data-action-close')&&!busy)modal.close();if(b.hasAttribute('data-action-history'))void history();if(b.hasAttribute('data-action-photo-remove')&&!busy){current.photos.splice(Number(b.dataset.actionPhotoRemove),1);pictures();}});
   window.addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnValue='';}});
  }
- return {save,refresh,edit,create,install,overdue,today};
+ return {save,refresh,edit,create,install,overdue,today,dashboard};
 })();
 document.addEventListener('DOMContentLoaded',()=>FollowUp.install());
 
