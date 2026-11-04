@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-04-inventory-r12">
+<meta name="rokelux-build" content="2026-11-04-draft-queue-r13">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -14952,7 +14952,7 @@ const CloudDrafts=(()=>{
  function canonical(value){if(Array.isArray(value))return value.map(canonical);if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).filter(k=>k!=='savedAt').sort().map(k=>[k,canonical(value[k])]));return value;}
  async function digest(d){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(canonical(d))));return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('');}
  const metadata=async(uid,kind,id)=>{const k=metaKey(uid,kind,id);if(versions.has(k))return versions.get(k);try{return await cacheTransaction('readonly',s=>s.get(k));}catch{return null;}};
- const remember=async(uid,kind,id,meta)=>{const k=metaKey(uid,kind,id);versions.set(k,meta);try{await cacheTransaction('readwrite',s=>s.put(meta,k));}catch{/* Server copy remains available even if local quota is exhausted. */}};
+ const remember=async(uid,kind,id,meta)=>{const k=metaKey(uid,kind,id),old=await metadata(uid,kind,id);if(old?.revision>meta.revision)return;versions.set(k,meta);try{await cacheTransaction('readwrite',s=>s.put(meta,k));}catch{/* Server copy remains available even if local quota is exhausted. */}};
  async function save(kind,button){
   if(busy)return;const uid=actor(),problem=FieldDrafts.validation(kind);if(problem){alert(problem);return;}
   if(!navigator.onLine){alert('Sin conexión. Guarda un borrador local y pulsa Guardar borrador en la nube cuando tengas internet.');return;}
@@ -15009,7 +15009,7 @@ const CloudDrafts=(()=>{
   document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.cloudSave)void save(b.dataset.cloudSave,b);if(b.hasAttribute('data-cloud-list'))void show();if(b.hasAttribute('data-cloud-close'))modal.close();if(b.dataset.cloudRestore)void restore(b.dataset.cloudKind,b.dataset.cloudRestore,b);});
   window.addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnValue='';}});
  }
- return {save,show,restore,install,canonical,digest};
+ return {save,show,restore,install,canonical,digest,metadata,remember};
 })();
 document.addEventListener('DOMContentLoaded',()=>CloudDrafts.install());
 
@@ -15215,6 +15215,51 @@ const Inventory=(()=>{
  return {install,identity,expired,date,refresh,move,saveLot};
 })();
 document.addEventListener('DOMContentLoaded',()=>Inventory.install());
+
+;
+// Only explicitly queued draft snapshots are uploaded. Never confirms a service or sends email.
+const DraftQueue=(()=>{
+ const prefix='cloud-draft-queue-v1:';let working=false,adding=false;
+ const actor=()=>sessionUser&&canEditTechnical()?sessionUser.id:null;
+ const put=j=>cacheTransaction('readwrite',s=>s.put(j,prefix+j.job));
+ async function rows(uid){const all=await cacheTransaction('readonly',s=>s.getAll());return all.filter(j=>j?.queueSchema===1&&j.uid===uid).sort((a,b)=>a.created.localeCompare(b.created));}
+ const message=t=>document.querySelectorAll('[data-sync-status]').forEach(e=>e.textContent=t);
+ const active=j=>['pending','blocked'].includes(j.status);
+ async function add(kind,button){if(adding||working)return;const uid=actor(),problem=FieldDrafts.validation(kind);if(problem)return alert(problem);adding=true;button.disabled=true;
+  try{let d;if(!await FieldDrafts.capture(kind,v=>{d=v;}))throw Error('No se pudieron preparar los datos');if(!d||uid!==actor())throw Error('La sesión cambió');
+   const hash=await CloudDrafts.digest(d),existing=(await rows(uid)).find(j=>active(j)&&j.draft.kind===kind&&j.draft.id===d.id);
+   if(existing){if(existing.hash===hash){message('Esta versión ya está en la cola. Revisa Pendientes de sincronización.');return;}throw Error('Ya hay otra versión de este formulario pendiente. Sincronízala o cancela su envío antes de programar los cambios nuevos');}
+   await FieldDrafts.put(d);const meta=await CloudDrafts.metadata(uid,kind,d.id);if(uid!==actor())throw Error('La sesión cambió');
+   await put({queueSchema:1,job:crypto.randomUUID(),uid,draft:d,revision:meta?.revision||0,hash,status:'pending',created:new Date().toISOString(),error:''});
+   message('Borrador guardado en este dispositivo y programado. Se enviará con internet y tu sesión abierta; aún no está confirmado en la nube.');
+  }catch(e){message('No se pudo programar: '+e.message);alert('No se pudo programar: '+e.message);}finally{adding=false;button.disabled=false;void sync();}
+ }
+ async function sync(){if(working||adding||!navigator.onLine||!actor())return;const uid=actor();working=true;
+  try{const pending=(await rows(uid)).filter(j=>j.status==='pending');for(const j of pending){if(actor()!==uid||!navigator.onLine)break;
+    // Another tab may have cancelled or completed the snapshot while we were waiting.
+    const fresh=await cacheTransaction('readonly',s=>s.get(prefix+j.job));if(fresh?.status!=='pending')continue;
+    const r=await sb.rpc('rokelux_save_field_draft',{p_kind:j.draft.kind,p_id:j.draft.id,p_client:j.draft.clientId,p_payload:j.draft,p_revision:j.revision});
+    if(r.error){const temporary=!r.error.code||['57014','53300','57P01'].includes(r.error.code);j.error=r.error.message||'Conexión no disponible';j.status=temporary?'pending':'blocked';await put(j);if(actor()===uid)message(temporary?'Sincronización pendiente; se reintentará con conexión.':'Un borrador requiere revisión. Se conserva la copia y no se sobrescribió la nube.');if(temporary)break;continue;}
+    await CloudDrafts.remember(uid,j.draft.kind,j.draft.id,{revision:r.data,hash:j.hash});
+    j.status='done';j.synced=new Date().toISOString();j.error='';j.draft={kind:j.draft.kind,id:j.draft.id,clientId:j.draft.clientId};await put(j);
+    if(actor()===uid)message('La versión programada se guardó en la nube. Los cambios que hiciste después necesitan un nuevo guardado. No se finalizaron servicios ni enviaron correos.');
+   }
+  }catch(e){if(actor()===uid)message('La sincronización no se confirmó: '+e.message+'. Se conserva la cola para reintentar.');}finally{working=false;}
+ }
+ async function show(){const uid=actor();if(!uid)return;$('syncDialog').showModal();const box=$('syncList');box.textContent='Leyendo pendientes de este dispositivo…';try{const list=await rows(uid);if(uid!==actor())return;
+  const titles={pending:'Pendiente de conexión',blocked:'Requiere revisión',done:'Confirmado en la nube',cancelled:'Envío cancelado'};
+  box.innerHTML=list.length?list.slice(-50).reverse().map(j=>'<div class="panel"><b>'+esc(clientName(j.draft.clientId))+'</b><p>'+esc(titles[j.status])+' · '+esc(new Date(j.created).toLocaleString('es-EC'))+'</p><p>'+esc(j.error||'')+'</p><button type="button" class="btn secondary" data-sync-recover="'+esc(j.job)+'">Ver borrador</button>'+(active(j)?'<button type="button" class="btn ghost" data-sync-cancel="'+esc(j.job)+'">Cancelar envío pendiente</button>':'')+'</div>').join(''):'No hay borradores programados en este dispositivo.';
+ }catch(e){box.textContent='No se pudo consultar la cola: '+e.message;}}
+ async function cancel(id){if(working||adding)return alert('Espera a que termine el intento de sincronización.');const uid=actor(),j=await cacheTransaction('readonly',s=>s.get(prefix+id));if(!j||j.uid!==uid||!active(j))return;j.status='cancelled';await put(j);await show();}
+ async function recover(id){const uid=actor(),j=await cacheTransaction('readonly',s=>s.get(prefix+id));if(!j||j.uid!==uid||uid!==actor())return;$('syncDialog').close();if(j.status==='done'){await CloudDrafts.show();return;}await FieldDrafts.restore(j.draft.kind,j.draft.id,j.draft);}
+ function install(){for(const id of ['home','ordersHome','service','certificateSign']){const screen=$(id);if(!screen)continue;const box=document.createElement('div');box.className='panel';box.innerHTML='<b>Sincronización de borradores</b><p data-sync-status role="status">Puedes programar una copia desde un formulario abierto. Se enviará cuando vuelva internet y mantengas la app abierta con tu usuario.</p>'+(['service','certificateSign'].includes(id)?'<button type="button" class="btn secondary" data-sync-add="'+(id==='service'?'service':'signatures')+'">Guardar y sincronizar al conectar</button>':'')+'<button type="button" class="btn ghost" data-sync-show>Pendientes de sincronización</button>';screen.prepend(box);}
+  const modal=document.createElement('dialog');modal.id='syncDialog';modal.className='panel';modal.style.cssText='color:var(--text);width:min(740px,95vw);max-height:85vh;overflow:auto';modal.innerHTML='<h3>Sincronización de este dispositivo</h3><p>Solo se envían las copias que programaste. Los conflictos se conservan para revisión. Cancelar detiene futuros intentos y conserva la copia; no revierte un envío ya iniciado desde otra pestaña.</p><div id="syncList"></div><button type="button" class="btn secondary" data-sync-run>Sincronizar ahora</button><button type="button" class="btn ghost" data-sync-close>Cerrar</button>';document.body.appendChild(modal);
+  document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.syncAdd)void add(b.dataset.syncAdd,b);if(b.hasAttribute('data-sync-show'))void show();if(b.hasAttribute('data-sync-run'))void sync().then(show);if(b.hasAttribute('data-sync-close'))modal.close();if(b.dataset.syncCancel)void cancel(b.dataset.syncCancel).catch(e=>alert(e.message));if(b.dataset.syncRecover)void recover(b.dataset.syncRecover).catch(e=>alert(e.message));});
+  let lastUid=null;const oldRender=renderAll;renderAll=function(...args){const r=oldRender.apply(this,args);if(lastUid!==actor()){lastUid=actor();modal.close();$('syncList').textContent='';message('La cola se consulta únicamente con el usuario que la creó.');}void sync();return r;};window.addEventListener('online',()=>void sync());setInterval(()=>void sync(),30000);void sync();
+ }
+ return {add,sync,rows,show,cancel,install};
+})();
+document.addEventListener('DOMContentLoaded',()=>DraftQueue.install());
 
 </script>
 </body></html>
