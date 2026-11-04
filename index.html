@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-04-draft-queue-r13">
+<meta name="rokelux-build" content="2026-11-04-draft-queue-r14">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -15242,7 +15242,7 @@ const DraftQueue=(()=>{
     if(r.error){const temporary=!r.error.code||['57014','53300','57P01'].includes(r.error.code);j.error=r.error.message||'Conexión no disponible';j.status=temporary?'pending':'blocked';await put(j);if(actor()===uid)message(temporary?'Sincronización pendiente; se reintentará con conexión.':'Un borrador requiere revisión. Se conserva la copia y no se sobrescribió la nube.');if(temporary)break;continue;}
     await CloudDrafts.remember(uid,j.draft.kind,j.draft.id,{revision:r.data,hash:j.hash});
     j.status='done';j.synced=new Date().toISOString();j.error='';j.draft={kind:j.draft.kind,id:j.draft.id,clientId:j.draft.clientId};await put(j);
-    if(actor()===uid)message('La versión programada se guardó en la nube. Los cambios que hiciste después necesitan un nuevo guardado. No se finalizaron servicios ni enviaron correos.');
+    if(actor()===uid){message('La versión programada se guardó en la nube. Los cambios que hiciste después necesitan un nuevo guardado. No se finalizaron servicios ni enviaron correos.');document.querySelectorAll('[data-field-draft-status]').forEach(e=>e.textContent='Copia local conservada. Consulta Sincronización de borradores para el estado de la versión programada.');}
    }
   }catch(e){if(actor()===uid)message('La sincronización no se confirmó: '+e.message+'. Se conserva la cola para reintentar.');}finally{working=false;}
  }
