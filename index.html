@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-04-draft-queue-r14">
+<meta name="rokelux-build" content="2026-11-05-report-evidence-r15">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -1483,7 +1483,7 @@ function reportStationHtml(map,stations){
  const pos=v=>Math.max(0,Math.min(100,Number(v)||0));
  const pins=stations.map(s=>`<span style="position:absolute;left:${pos(s.x)}%;top:${pos(s.y)}%;transform:translate(-50%,-50%);background:${baitColor(s.baitStatus)};color:#111;border:1px solid #333;border-radius:4px;font-size:9px;padding:3px">${esc(s.code)}</span>`).join('');
  const rows=[...stations].sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true})).map(s=>`<tr><td><b>${esc(s.code)} – ${esc(baitLabel(s.baitStatus))}</b></td><td>${esc(s.status==='Operativa'?'Normal':s.status)}</td><td>${esc(fmt(s.lastCheck)||'—')}</td><td>${esc(s.notes||'')}</td></tr>`).join('');
- return `<div class="section"><h2>Estaciones de roedores</h2><p style="font-size:10px">${esc(map?.site||'Mapa de estaciones')} · Último control guardado</p>${map?.background?`<div style="position:relative;width:100%;aspect-ratio:16/10;overflow:hidden;break-inside:avoid"><img src="${esc(map.background)}" alt="Mapa de estaciones" style="display:block;width:100%;height:100%;object-fit:cover">${pins}</div>`:''}<table><thead><tr><th>Estación – cebo</th><th>Estado de trampa</th><th>Última revisión</th><th>Observaciones</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Sin estaciones registradas.</td></tr>'}</tbody></table></div>`;
+ return `<div class="section"><h2>Estaciones de roedores</h2><p style="font-size:10px">${esc(map?.site||'Mapa de estaciones')} · Estados registrados</p>${map?.background?`<div style="position:relative;width:100%;aspect-ratio:16/10;overflow:hidden;break-inside:avoid"><img src="${esc(map.background)}" alt="Mapa de estaciones" style="display:block;width:100%;height:100%;object-fit:cover">${pins}</div>`:''}<table><thead><tr><th>Estación – cebo</th><th>Estado de trampa</th><th>Última revisión</th><th>Observaciones</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Sin estaciones registradas.</td></tr>'}</tbody></table></div>`;
 }
 async function loadReportStations(cid){
  const [m,s]=await Promise.all([sb.from('station_maps').select('*').eq('client_id',cid).maybeSingle(),sb.from('stations').select('*').eq('client_id',cid)]);
@@ -1503,12 +1503,12 @@ async function printServiceReport(){
   try{
     const {data,error}=await sb.from('services').select('*').eq('id',id).single();if(error)throw error;
     if(isClient()&&data.client_id!==currentClientId())throw Error('Servicio no autorizado.');
-    const rodents=await loadReportStations(data.client_id);cacheConfirmedService(data);$('srService').value=id;renderServiceReportDocument(popup,rodents);
+    const rodents=await ReportEvidence.load(id);$('srService').value=id;renderServiceReportDocument(popup,rodents);
   }catch(e){popup.close();alert('No se pudo cargar el informe: '+e.message);}
 }
 function renderServiceReportDocument(popup,rodents={map:null,stations:[]}){
   const id=$("srService").value;if(!id)return alert("Selecciona un servicio.");
-  const d=state(),s=d.services.find(x=>x.id===id);if(!s||(isClient()&&s.clientId!==currentClientId()))return alert('Servicio no disponible para este usuario.');const cl=d.clients.find(x=>x.id===s.clientId)||{};
+  const d=state(),s=rodents.service?serviceFromDb(rodents.service):d.services.find(x=>x.id===id);if(!s||(isClient()&&s.clientId!==currentClientId()))return alert('Servicio no disponible para este usuario.');const cl=rodents.client||d.clients.find(x=>x.id===s.clientId)||{};
   const activity=(s.activity||[]).map(a=>`<tr><td>${esc(a.pest)}</td><td><span class="pill">${esc(a.level)}</span></td><td>${a.count||0}</td></tr>`).join("")||"<tr><td colspan='3'>Sin niveles registrados</td></tr>";
   const photos=uniqueServicePhotos(s.photos).map((p,i)=>`<img alt="Fotografía ${i+1} del servicio" src="${esc(typeof p==='string'?p:(p?.url||p?.dataUrl||''))}">`).join("");
   const techSig=s.technicianSignature?`<img src="${s.technicianSignature}"><br>`:"";
@@ -1520,7 +1520,7 @@ function renderServiceReportDocument(popup,rodents={map:null,stations:[]}){
   <div class="section avoid"><h2>Nivel de actividad / incidencias</h2><table><tr><th>Plaga / vector</th><th>Nivel</th><th>Cantidad</th></tr>${activity}</table></div>
   <div class="card analysis"><h3>Observaciones y recomendaciones</h3><div style="font-size:10px;line-height:1.55">${esc(s.notes||"Sin observaciones adicionales.")}</div></div>
   ${photos?`<div class="section"><h2>Evidencia fotográfica</h2><div class="photo-grid">${photos}</div></div>`:""}
-  ${reportStationHtml(rodents.map,rodents.stations)}
+  <p style="font-size:10px;line-height:1.5">${esc(rodents.notice||'')}</p>${reportStationHtml(rodents.map,rodents.stations)}
   <div class="signatures avoid"><div class="sigbox">${techSig}<b>${esc(s.technicianName||"Técnico responsable")}</b><br>Técnico ROKELUX</div><div class="sigbox">${supervisorSig}<b>${esc(s.supervisorName||"Supervisor pendiente")}</b><br>Supervisor de ROKELUX</div></div>
   <div class="footer"><span>ROKELUX · 099 498 1292 · info@rokeluxec.com</span><span>Informe técnico</span></div>
   </div><script>window.onload=async()=>{await Promise.all(Array.from(document.images).map(img=>img.decode?img.decode().catch(()=>{}):Promise.resolve()));const failed=Array.from(document.images).filter(img=>!img.naturalWidth);if(failed.length){const message=document.createElement('p');message.textContent='No se pudieron abrir '+failed.length+' imágenes. Revisa la conexión o el formato antes de imprimir.';message.style.color='red';document.body.prepend(message);return;}window.print();}<\/script></body></html>`;
@@ -15260,6 +15260,30 @@ const DraftQueue=(()=>{
  return {add,sync,rows,show,cancel,install};
 })();
 document.addEventListener('DOMContentLoaded',()=>DraftQueue.install());
+
+;
+// Historical report data is read from the server; never replace an archive with current stations.
+const ReportEvidence=(()=>{
+ function normalize(result,id){
+  if(!result||!['archive','draft','missing'].includes(result.source))throw Error('Respuesta de informe incompleta.');
+  const snap=result.snapshot;
+  if(!snap?.service||snap.service.id!==id||!snap.client||snap.client.id!==snap.service.client_id)throw Error('La copia del informe no corresponde al servicio.');
+  const historical=result.source==='archive'&&result.has_station_archive===true;
+  const usable=historical||result.source==='draft';
+  if(usable&&!Array.isArray(snap.stations))throw Error('La copia de estaciones está incompleta.');
+  const notice=result.source==='draft'?'BORRADOR — mapa y estaciones actuales. Se archivarán al firmar el informe.':historical?'Mapa y estados conservados con el informe preparado para envío.':'Este informe no tiene una copia histórica del mapa y las estaciones. No se muestran datos actuales como históricos.';
+  return {service:snap.service,client:snap.client,map:usable&&snap.station_map?mapFromDb(snap.station_map):null,
+   stations:usable?snap.stations.map(stationFromDb):[],notice,source:result.source};
+ }
+ async function load(id){
+  const owner=sessionUser?.id;if(!owner)throw Error('Inicia sesión.');
+  const {data,error}=await sb.rpc('rokelux_report_evidence',{p_service:id});
+  if(error)throw error;
+  if(sessionUser?.id!==owner)throw Error('La sesión cambió. Vuelve a abrir el informe.');
+  return normalize(data,id);
+ }
+ return {normalize,load};
+})();
 
 </script>
 </body></html>
