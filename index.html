@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-05-report-evidence-r15">
+<meta name="rokelux-build" content="2026-11-05-report-evidence-r16">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -15268,9 +15268,10 @@ const ReportEvidence=(()=>{
   if(!result||!['archive','draft','missing'].includes(result.source))throw Error('Respuesta de informe incompleta.');
   const snap=result.snapshot;
   if(!snap?.service||snap.service.id!==id||!snap.client||snap.client.id!==snap.service.client_id)throw Error('La copia del informe no corresponde al servicio.');
-  const historical=result.source==='archive'&&result.has_station_archive===true;
+  const complete=Array.isArray(snap.stations)&&snap.stations.every(s=>s&&typeof s==='object'&&typeof s.code==='string');
+  const historical=result.source==='archive'&&result.has_station_archive===true&&complete;
   const usable=historical||result.source==='draft';
-  if(usable&&!Array.isArray(snap.stations))throw Error('La copia de estaciones está incompleta.');
+  if(usable&&!complete)throw Error('La copia de estaciones está incompleta.');
   const notice=result.source==='draft'?'BORRADOR — mapa y estaciones actuales. Se archivarán al firmar el informe.':historical?'Mapa y estados conservados con el informe preparado para envío.':'Este informe no tiene una copia histórica del mapa y las estaciones. No se muestran datos actuales como históricos.';
   return {service:snap.service,client:snap.client,map:usable&&snap.station_map?mapFromDb(snap.station_map):null,
    stations:usable?snap.stations.map(stationFromDb):[],notice,source:result.source};
