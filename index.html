@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-05-visit-control-r18">
+<meta name="rokelux-build" content="2026-11-05-visit-control-r19">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -15327,7 +15327,9 @@ const VisitControl=(()=>{
  const counts=v=>(v?.stations||[]).reduce((n,s)=>{n[s.visit_result]=(n[s.visit_result]||0)+1;return n;},{pending:0,reviewed:0,skipped:0});
  function paint(){
   const n=counts(visit);$('visitSummary').textContent=visit?`${n.reviewed} revisadas · ${n.skipped} no revisadas con motivo · ${n.pending} pendientes${visit.closed_at?' · CONTROL CERRADO':''}`:'Este servicio todavía no tiene un control de estaciones por visita.';
-  $('visitStart').hidden=!!visit;$('visitClose').hidden=!visit||!!visit.closed_at;$('visitClose').disabled=!!n.pending;
+  const selected=state().services.find(s=>s.id===$('visitService').value);
+  $('visitStart').hidden=!!visit||!selected||!!selected.supervisorSignedAt;$('visitClose').hidden=!visit||!!visit.closed_at;$('visitClose').disabled=!!n.pending;
+  if(!visit&&selected?.supervisorSignedAt)$('visitSummary').textContent='Informe ya firmado. No se crea un control nuevo sobre un servicio histórico.';
   $('visitEdit').hidden=!visit||!!visit.closed_at;
   $('visitStation').innerHTML=(visit?.stations||[]).map(s=>`<option value="${esc(s.id)}">${esc(s.code)} · ${esc({pending:'Pendiente',reviewed:'Revisada',skipped:'No revisada'}[s.visit_result])}</option>`).join('');
   $('visitRows').innerHTML=(visit?.stations||[]).map(s=>{const data=unpackStationNotes(s.notes);return `<div style="padding:8px;border-bottom:1px solid #345"><b>${esc(s.code)}</b> · ${esc(s.status)} · ${esc(baitLabel(data.baitStatus))}<br>${esc(data.notes)}</div>`;}).join('');
@@ -15348,12 +15350,14 @@ const VisitControl=(()=>{
   catch(e){$('visitMessage').textContent='No se confirmó el guardado: '+e.message+'. El formulario se conserva.';}
   finally{busy=false;controls.forEach(x=>x.disabled=false);$('visitClose').disabled=!!counts(visit).pending;mode();}
  }
- function open(){if(!canEditTechnical())return;owner=sessionUser?.id;visit=null;attempt=null;$('visitService').innerHTML='<option value="">Selecciona servicio</option>'+state().services.map(s=>`<option value="${esc(s.id)}">${esc(s.date)} · ${esc(clientName(s.clientId))}</option>`).join('');$('visitDialog').showModal();paint();$('visitMessage').textContent='Selecciona la visita que estás realizando. No se modifican informes ya firmados.';}
+ function open(id){if(!canEditTechnical())return;owner=sessionUser?.id;visit=null;attempt=null;$('visitService').innerHTML='<option value="">Selecciona servicio</option>'+state().services.map(s=>`<option value="${esc(s.id)}">${esc(s.date)} · ${esc(clientName(s.clientId))}</option>`).join('');$('visitDialog').showModal();paint();$('visitMessage').textContent='Selecciona la visita que estás realizando. No se modifican informes ya firmados.';if(typeof id==='string'){$('visitService').value=id;void load();}}
  function install(){
   const el=document.createElement('dialog');el.id='visitDialog';el.style.cssText='width:min(850px,95vw);max-width:95vw;max-height:92vh;overflow:auto;background:#101810;color:#fff;border:1px solid #456;border-radius:16px;padding:20px';
   el.innerHTML='<h2>Control de estaciones por visita</h2><button class="btn" id="visitExit">Cerrar ventana</button><label style="display:block;margin-top:15px">Servicio<select id="visitService" style="width:100%"></select></label><button class="btn" id="visitRefresh">Actualizar</button><p id="visitMessage" role="status"></p><p id="visitSummary"></p><button class="btn primary" id="visitStart">Iniciar control de esta visita</button><img id="visitMap" alt="Mapa conservado para esta visita" style="max-width:100%;max-height:300px" hidden><div id="visitEdit"><label style="display:block">Estación<select id="visitStation" style="width:100%"></select></label><label style="display:block">Resultado<select id="visitResult" style="width:100%"><option value="review">Revisada</option><option value="skip">No revisada: registrar motivo</option></select></label><label style="display:block">Estado de trampa<select id="visitTrap" style="width:100%"><option value="">Selecciona estado</option><option>Normal</option><option>No encontrada</option><option>Obstruida</option><option>Dañada</option></select></label><label style="display:block">Cebo<select id="visitBait" style="width:100%"><option value="">Selecciona resultado</option><option>Picada</option><option>Comida</option><option>Sin novedad</option></select></label><label style="display:block"><span id="visitNoteLabel">Observaciones</span><textarea id="visitNotes" maxlength="4000" style="width:100%;min-height:70px"></textarea></label><button class="btn primary" id="visitSave">Guardar resultado de la estación</button></div><div id="visitRows"></div><p>Cerrar conserva el mapa y los resultados de esta visita para el informe. Revisa los datos antes de cerrar.</p><button class="btn primary" id="visitClose">Cerrar control y conservar resultados</button>';
   document.body.append(el);$('visitExit').onclick=()=>{if(!busy)el.close();};el.addEventListener('cancel',e=>{if(busy)e.preventDefault();});$('visitService').onchange=load;$('visitRefresh').onclick=load;$('visitStation').onchange=choose;$('visitResult').onchange=mode;$('visitStart').onclick=()=>act('open');$('visitSave').onclick=()=>act($('visitResult').value);$('visitClose').onclick=()=>act('close');
-  const b=document.createElement('button');b.className='btn';b.textContent='Control de estaciones por visita';b.onclick=open;$('serviceReports').prepend(b);const previous=renderAll;renderAll=function(){previous();b.hidden=!canEditTechnical();if(owner&&owner!==sessionUser?.id){el.close();visit=null;owner=null;}};
+  const b=document.createElement('button');b.className='btn';b.textContent='Control de estaciones por visita';b.onclick=()=>open();$('serviceReports').prepend(b);
+  const sig=document.createElement('button');sig.className='btn secondary';sig.textContent='Revisar y cerrar estaciones de este servicio';sig.type='button';sig.onclick=()=>open($('sigService').value);document.querySelector('[onclick="saveSupervisorSignature()"]')?.before(sig);
+  const previous=renderAll;renderAll=function(){previous();b.hidden=!canEditTechnical();sig.hidden=!canEditTechnical();if(owner&&owner!==sessionUser?.id){el.close();visit=null;owner=null;}};
  }
  document.addEventListener('DOMContentLoaded',install);return {counts,open};
 })();
