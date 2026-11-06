@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-06-station-alerts-r21">
+<meta name="rokelux-build" content="2026-11-06-activity-map-r22">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -15334,7 +15334,7 @@ const VisitControl=(()=>{
   $('visitStation').innerHTML=(visit?.stations||[]).map(s=>`<option value="${esc(s.id)}">${esc(s.code)} · ${esc({pending:'Pendiente',reviewed:'Revisada',skipped:'No revisada'}[s.visit_result])}</option>`).join('');
   $('visitRows').innerHTML=(visit?.stations||[]).map(s=>{const data=unpackStationNotes(s.notes);return `<div style="padding:8px;border-bottom:1px solid #345"><b>${esc(s.code)}</b> · ${esc(s.status)} · ${esc(baitLabel(data.baitStatus))}<br>${esc(data.notes)}</div>`;}).join('');
   $('visitMap').hidden=!visit?.map?.background_url;$('visitMap').src=visit?.map?.background_url||'';
-  choose(); StationAlerts.show(visit);
+  choose(); StationAlerts.show(visit); ActivityMap.render(visit);
  }
  function choose(){const s=visit?.stations.find(s=>s.id===$('visitStation').value);const d=s?unpackStationNotes(s.notes):{};$('visitResult').value=s?.visit_result==='skipped'?'skip':'review';$('visitTrap').value=['Normal','No encontrada','Obstruida','Dañada'].includes(s?.status)?s.status:'';$('visitBait').value=d.baitStatus||'';$('visitNotes').value=d.notes||'';mode();attempt=null;}
  function mode(){const skip=$('visitResult').value==='skip';$('visitTrap').disabled=skip;$('visitBait').disabled=skip;$('visitNoteLabel').textContent=skip?'Motivo de no revisión (obligatorio)':'Observaciones';}
@@ -15374,6 +15374,17 @@ const StationAlerts=(()=>{
  async function save(){if(saving||!isAdmin()||!current||owner!==sessionUser?.id)return;const v=current,uid=owner,n=++serial;const threshold=Number($('alertThreshold').value),minimum=Number($('alertMinimum').value);if(!(threshold>0&&threshold<=100&&Number.isInteger(minimum)&&minimum>=1&&minimum<=10000)){$('alertMessage').textContent='Completa porcentaje mayor que 0 y hasta 100 y un mínimo entero de estaciones.';return;}$('alertSave').disabled=true;try{const r=await sb.rpc('rokelux_station_alert_rule',{p_service:v.service_id,p_threshold:threshold,p_minimum:minimum,p_revision:rule?.revision??0});if(r.error)throw r.error;if(n!==serial||uid!==sessionUser?.id)return;rule=r.data;paint();$('alertMessage').textContent='Límite guardado en la nube para este cliente.';}catch(e){if(n===serial&&uid===sessionUser?.id)$('alertMessage').textContent='No se confirmó el cambio: '+e.message;}finally{$('alertSave').disabled=false;}}
  function install(){const panel=document.createElement('section');panel.id='stationAlertPanel';panel.hidden=true;panel.className='panel';panel.innerHTML='<h3>Alertas de esta visita</h3><p id="alertResult" role="status"></p><p id="alertContext"></p><button class="btn" id="alertRefresh" type="button">Actualizar alerta</button><div id="alertConfigure"><label style="display:block">Avisar desde este porcentaje de actividad<input id="alertThreshold" type="number" min="0.01" max="100" step="any" style="display:block;width:100%"></label><label style="display:block">Mínimo de estaciones evaluables<input id="alertMinimum" type="number" min="1" max="10000" step="1" style="display:block;width:100%"></label><button class="btn primary" id="alertSave" type="button">Guardar límite del cliente</button></div><p id="alertMessage" role="status"></p>';$('visitSummary').after(panel);$('alertRefresh').onclick=refresh;$('alertSave').onclick=save;}
  document.addEventListener('DOMContentLoaded',install);return {assess,show};
+})();
+</script>
+<script>
+const ActivityMap=(()=>{
+ function category(s){if(s.visit_result==='pending')return ['Pendiente','#64748b'];if(s.visit_result==='skipped')return ['No revisada','#475569'];if(s.visit_result!=='reviewed')return ['Sin clasificar','#64748b'];if(['Dañada','Obstruida','No encontrada'].includes(s.status))return [s.status,'#b45309'];const b=unpackStationNotes(s.notes).baitStatus;if(s.status!=='Normal')return ['Sin clasificar','#64748b'];return b==='Comida'?['Comida','#b91c1c']:b==='Picada'?['Picada','#9a3412']:b==='Sin novedad'?['Sin novedad','#166534']:['Sin clasificar','#64748b'];}
+ function positioned(s){return typeof s.x==='number'&&typeof s.y==='number'&&Number.isFinite(s.x)&&Number.isFinite(s.y)&&s.x>=0&&s.x<=100&&s.y>=0&&s.y<=100;}
+ function render(v){const host=$('visitActivityMap');if(!host)return;host.hidden=!v;document.getElementById('visitMap').hidden=true;if(!v){host.replaceChildren();return;}host.innerHTML='<h3>Mapa de actividad de esta visita</h3><p>Rojo: Comida · Naranja: Picada · Verde: Sin novedad · Ámbar: incidencia · Gris: pendiente/no revisada. Cada punto conserva el estado de esta visita; no representa una tasa de infestación.</p>';const src=v.map?.background_url;
+  if(typeof src==='string'&&/^(https:\/\/|data:image\/(png|jpeg|webp);base64,)/i.test(src)){const frame=document.createElement('div');frame.style.cssText='position:relative;width:100%;margin:12px 0';const img=document.createElement('img');img.alt='Plano conservado para esta visita';img.style.cssText='display:block;width:100%;height:auto';img.src=src;frame.append(img);const overlay=document.createElement('div');overlay.style.cssText='position:absolute;inset:0';overlay.hidden=true;img.onload=()=>overlay.hidden=false;img.onerror=()=>{overlay.hidden=true;const p=document.createElement('p');p.textContent='No se pudo cargar el plano. Consulta el detalle de estaciones.';frame.replaceChildren(p);};for(const s of v.stations||[]){if(!positioned(s))continue;const [label,color]=category(s),pin=document.createElement('span');pin.textContent=s.code;pin.title=s.code+' · '+label;pin.style.cssText=`position:absolute;left:${s.x}%;top:${s.y}%;transform:translate(-50%,-50%);background:${color};color:white;border:2px solid white;border-radius:12px;padding:3px;font-size:11px;font-weight:bold`;overlay.append(pin);}frame.append(overlay);host.append(frame);}else{const p=document.createElement('p');p.textContent='Esta visita no conserva un plano disponible. Se muestran los resultados por estación.';host.append(p);}
+  const list=document.createElement('div');list.style.cssText='display:flex;flex-wrap:wrap;gap:6px';for(const s of v.stations||[]){const [label,color]=category(s),row=document.createElement('span');row.textContent=s.code+' — '+label+(positioned(s)?'':' · sin posición válida');row.style.cssText='padding:6px;border-radius:6px;color:white;background:'+color;list.append(row);}host.append(list);
+ }
+ document.addEventListener('DOMContentLoaded',()=>{const el=document.createElement('section');el.id='visitActivityMap';el.hidden=true;$('visitMap').after(el);});return {category,positioned,render};
 })();
 </script>
 </body></html>
