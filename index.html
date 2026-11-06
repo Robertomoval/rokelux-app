@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-06-activity-map-r22">
+<meta name="rokelux-build" content="2026-11-06-stock-expiry-r23">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -15177,7 +15177,7 @@ const Inventory=(()=>{
  const holderName=id=>id===W?'Bodega':people.find(p=>p.user_id===id)?.full_name||(id===actor()?'Mi inventario':'Técnico sin perfil disponible');
  const expired=l=>l.expires<date();
  function reset(){if(owner!==actor()){owner=actor();version++;lots=[];balances=[];people=[];request=null;lotRequest=null;$('stockDialog')?.close();$('stockLotDialog')?.close();$('stockRows').textContent='Actualiza para consultar el inventario de tu usuario.';$('stockStatus').textContent='';}document.querySelectorAll('[data-stock-open]').forEach(b=>b.hidden=!actor());$('stockNew').hidden=!isAdmin();}
- async function refresh(){const uid=actor(),v=++version;if(!uid)return;$('stockStatus').textContent='Consultando inventario en la nube…';
+ async function refresh(){void StockExpiry.refresh();const uid=actor(),v=++version;if(!uid)return;$('stockStatus').textContent='Consultando inventario en la nube…';
   try{const queries=[sb.from('rokelux_stock_lots').select('*').order('created_at',{ascending:false}).limit(200),sb.from('rokelux_stock_balances').select('*')];if(isAdmin())queries.push(sb.from('profiles').select('user_id,full_name,role,active').eq('role','technician'));
    const result=await Promise.all(queries);for(const r of result)if(r.error)throw r.error;if(uid!==actor()||v!==version)return;
    lots=result[0].data;balances=result[1].data;people=result[2]?.data||[];
@@ -15385,6 +15385,18 @@ const ActivityMap=(()=>{
   const list=document.createElement('div');list.style.cssText='display:flex;flex-wrap:wrap;gap:6px';for(const s of v.stations||[]){const [label,color]=category(s),row=document.createElement('span');row.textContent=s.code+' — '+label+(positioned(s)?'':' · sin posición válida');row.style.cssText='padding:6px;border-radius:6px;color:white;background:'+color;list.append(row);}host.append(list);
  }
  document.addEventListener('DOMContentLoaded',()=>{const el=document.createElement('section');el.id='visitActivityMap';el.hidden=true;$('visitMap').after(el);});return {category,positioned,render};
+})();
+</script>
+<script>
+const StockExpiry=(()=>{
+ let serial=0;
+ const day=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Guayaquil',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ function bounds(today){const d=new Date(today+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+30);return {today,until:d.toISOString().slice(0,10)};}
+ function status(expires,today){return expires<today?'Vencido':expires===today?'Vence hoy':'Próximo a vencer';}
+ async function refresh(){const el=$('stockExpiry');if(!el)return;const uid=sessionUser?.id,n=++serial;if(!uid||!canEditTechnical()){el.replaceChildren();return;}el.textContent='Consultando vencimientos en la nube…';const {today,until}=bounds(day());try{let rows=[];for(let offset=0;;offset+=500){const r=await sb.from('rokelux_stock_balances').select('lot_id,holder,quantity,lot:rokelux_stock_lots!inner(product,lot,unit,expires)').gt('quantity',0).lte('lot.expires',until).order('lot_id').order('holder').range(offset,offset+499);if(r.error)throw r.error;if(uid!==sessionUser?.id||n!==serial)return;rows.push(...r.data);if(r.data.length<500)break;}
+ rows.sort((a,b)=>a.lot.expires.localeCompare(b.lot.expires));const ids=new Set(rows.map(x=>x.lot_id));el.innerHTML='<h3>Vencimientos de productos</h3><p>Existencias positivas vencidas o que vencen en los próximos 30 días, incluido hoy. Fecha de consulta: '+esc(today)+'.</p>'+(rows.length?'<p>'+ids.size+' lotes requieren atención.</p>'+rows.map(r=>'<div style="padding:10px;border-top:1px solid #456"><b>'+esc(status(r.lot.expires,today))+' · '+esc(r.lot.product)+'</b><br>Lote '+esc(r.lot.lot)+' · '+Number(r.quantity)+' '+esc(r.lot.unit)+' · vence '+esc(r.lot.expires)+'<br>'+esc(r.holder==='00000000-0000-0000-0000-000000000000'?'Bodega':r.holder===uid?'Mi inventario':'Inventario de técnico · '+r.holder)+'</div>').join(''):'<p>No hay existencias registradas con vencimiento dentro de este periodo.</p>')+'<p>Los lotes vencidos no se pueden entregar ni consumir. Este aviso no envía correos ni modifica existencias.</p>';
+ }catch(e){if(uid===sessionUser?.id&&n===serial)el.textContent='No se pudieron consultar vencimientos: '+e.message;}}
+ document.addEventListener('DOMContentLoaded',()=>{const el=document.createElement('section');el.id='stockExpiry';el.className='panel';$('stockRows').before(el);const old=renderAll;renderAll=function(...args){const r=old.apply(this,args);serial++;el.replaceChildren();return r;};});return {refresh,bounds,status};
 })();
 </script>
 </body></html>
