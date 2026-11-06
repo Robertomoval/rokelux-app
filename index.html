@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-06-service-stock-r20">
+<meta name="rokelux-build" content="2026-11-06-station-alerts-r21">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -15334,7 +15334,7 @@ const VisitControl=(()=>{
   $('visitStation').innerHTML=(visit?.stations||[]).map(s=>`<option value="${esc(s.id)}">${esc(s.code)} · ${esc({pending:'Pendiente',reviewed:'Revisada',skipped:'No revisada'}[s.visit_result])}</option>`).join('');
   $('visitRows').innerHTML=(visit?.stations||[]).map(s=>{const data=unpackStationNotes(s.notes);return `<div style="padding:8px;border-bottom:1px solid #345"><b>${esc(s.code)}</b> · ${esc(s.status)} · ${esc(baitLabel(data.baitStatus))}<br>${esc(data.notes)}</div>`;}).join('');
   $('visitMap').hidden=!visit?.map?.background_url;$('visitMap').src=visit?.map?.background_url||'';
-  choose();
+  choose(); StationAlerts.show(visit);
  }
  function choose(){const s=visit?.stations.find(s=>s.id===$('visitStation').value);const d=s?unpackStationNotes(s.notes):{};$('visitResult').value=s?.visit_result==='skipped'?'skip':'review';$('visitTrap').value=['Normal','No encontrada','Obstruida','Dañada'].includes(s?.status)?s.status:'';$('visitBait').value=d.baitStatus||'';$('visitNotes').value=d.notes||'';mode();attempt=null;}
  function mode(){const skip=$('visitResult').value==='skip';$('visitTrap').disabled=skip;$('visitBait').disabled=skip;$('visitNoteLabel').textContent=skip?'Motivo de no revisión (obligatorio)':'Observaciones';}
@@ -15363,5 +15363,17 @@ const VisitControl=(()=>{
 })();
 
 
+</script>
+<script>
+const StationAlerts=(()=>{
+ let current=null,rule=null,serial=0,owner=null,saving=false;
+ function assess(v,r){const out={active:0,evaluated:0,faults:0,pending:0,skipped:0,unknown:0};for(const s of v?.stations||[]){if(s.visit_result==='pending'){out.pending++;continue;}if(s.visit_result==='skipped'){out.skipped++;continue;}if(s.visit_result!=='reviewed'){out.unknown++;continue;}if(['Dañada','Obstruida','No encontrada'].includes(s.status)){out.faults++;continue;}const b=unpackStationNotes(s.notes).baitStatus;if(s.status!=='Normal'||!['Picada','Comida','Sin novedad'].includes(b)){out.unknown++;continue;}out.evaluated++;if(b!=='Sin novedad')out.active++;}out.percent=out.evaluated?100*out.active/out.evaluated:null;out.ready=!!r&&out.evaluated>=r.minimum;out.alert=out.ready&&out.percent>=r.threshold;return out;}
+ function paint(){if(!current)return;const a=assess(current,rule);$('alertResult').textContent=(a.ready?(a.alert?'ALERTA: actividad alcanza el límite. ':'Actividad por debajo del límite. '):(rule?'Datos insuficientes para comparar con el límite. ':'Administración todavía no ha configurado un límite. '))+`${a.active} con cebo picado/comido de ${a.evaluated} evaluables${a.percent===null?'':' ('+a.percent.toFixed(1)+'%)'}. ${a.faults} con incidencias · ${a.pending} pendientes · ${a.skipped} no revisadas · ${a.unknown} sin clasificar.`;$('alertThreshold').value=rule?.threshold??'';$('alertMinimum').value=rule?.minimum??'';$('alertConfigure').hidden=!isAdmin();$('alertContext').textContent=(current.closed_at?'Visita cerrada. ':'Visita abierta: resultado provisional. ')+(rule?`Límite actual de este cliente: ${rule.threshold}% con al menos ${rule.minimum} estaciones evaluables. `:'')+'Se compara con la configuración actual; no modifica informes firmados. No es una tasa de infestación ni genera correo.';}
+ async function refresh(){const v=current,uid=sessionUser?.id,n=++serial;if(!v)return;owner=uid;$('alertMessage').textContent='Consultando configuración en la nube…';try{const r=await sb.rpc('rokelux_station_alert_rule',{p_service:v.service_id});if(r.error)throw r.error;if(n!==serial||uid!==sessionUser?.id)return;rule=r.data;paint();$('alertMessage').textContent='Configuración consultada en la nube.';}catch(e){if(n===serial&&uid===sessionUser?.id){rule=null;$('alertResult').textContent='No se pudo evaluar la alerta.';$('alertMessage').textContent=e.message;}}}
+ function show(v){current=v;rule=null;serial++;$('stationAlertPanel').hidden=!v;if(v){$('alertResult').textContent='Consultando…';$('alertConfigure').hidden=true;void refresh();}}
+ async function save(){if(saving||!isAdmin()||!current||owner!==sessionUser?.id)return;const v=current,uid=owner,n=++serial;const threshold=Number($('alertThreshold').value),minimum=Number($('alertMinimum').value);if(!(threshold>0&&threshold<=100&&Number.isInteger(minimum)&&minimum>=1&&minimum<=10000)){$('alertMessage').textContent='Completa porcentaje mayor que 0 y hasta 100 y un mínimo entero de estaciones.';return;}$('alertSave').disabled=true;try{const r=await sb.rpc('rokelux_station_alert_rule',{p_service:v.service_id,p_threshold:threshold,p_minimum:minimum,p_revision:rule?.revision??0});if(r.error)throw r.error;if(n!==serial||uid!==sessionUser?.id)return;rule=r.data;paint();$('alertMessage').textContent='Límite guardado en la nube para este cliente.';}catch(e){if(n===serial&&uid===sessionUser?.id)$('alertMessage').textContent='No se confirmó el cambio: '+e.message;}finally{$('alertSave').disabled=false;}}
+ function install(){const panel=document.createElement('section');panel.id='stationAlertPanel';panel.hidden=true;panel.className='panel';panel.innerHTML='<h3>Alertas de esta visita</h3><p id="alertResult" role="status"></p><p id="alertContext"></p><button class="btn" id="alertRefresh" type="button">Actualizar alerta</button><div id="alertConfigure"><label style="display:block">Avisar desde este porcentaje de actividad<input id="alertThreshold" type="number" min="0.01" max="100" step="any" style="display:block;width:100%"></label><label style="display:block">Mínimo de estaciones evaluables<input id="alertMinimum" type="number" min="1" max="10000" step="1" style="display:block;width:100%"></label><button class="btn primary" id="alertSave" type="button">Guardar límite del cliente</button></div><p id="alertMessage" role="status"></p>';$('visitSummary').after(panel);$('alertRefresh').onclick=refresh;$('alertSave').onclick=save;}
+ document.addEventListener('DOMContentLoaded',install);return {assess,show};
+})();
 </script>
 </body></html>
