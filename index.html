@@ -15267,19 +15267,20 @@ const ReportEvidence=(()=>{
   if(!result||!['archive','draft','current','missing'].includes(result.source))throw Error('Respuesta de informe incompleta.');
   const snap=result.snapshot;
   if(!snap?.service||snap.service.id!==id||!snap.client||snap.client.id!==snap.service.client_id)throw Error('La copia del informe no corresponde al servicio.');
-  const complete=Array.isArray(snap.stations)&&snap.stations.every(s=>s&&typeof s==='object'&&typeof s.code==='string');
+  const stations=Array.isArray(snap.stations)?snap.stations:[];
+  const complete=Array.isArray(snap.stations)&&stations.every(s=>s&&typeof s==='object'&&typeof s.code==='string');
   const historical=result.source==='archive'&&result.has_station_archive===true&&complete;
   const usable=historical||result.source==='draft'||result.source==='current';
   if(usable&&!complete)throw Error('La copia de estaciones está incompleta.');
   const capturedAt=snap.stations_captured_at?new Date(snap.stations_captured_at):null;
   const capturedLabel=capturedAt&&!Number.isNaN(capturedAt.valueOf())?new Intl.DateTimeFormat('es-EC',{dateStyle:'medium',timeStyle:'short'}).format(capturedAt):'';
-  const noCurrentEvidence=result.source==='current'&&!snap.station_map&&!snap.stations.length;
+  const noCurrentEvidence=result.source==='current'&&!snap.station_map&&!stations.length;
   const map=usable&&snap.station_map?mapFromDb(snap.station_map):null;
-  const currentNotice=noCurrentEvidence?'No hay mapa ni estaciones registradas para este cliente. El informe se genera sin el anexo de estaciones.':`No existe una copia histórica de las estaciones para esta visita. Se incluye ${map?'el mapa y el estado':'el listado de estados'} actual consultado el ${capturedLabel||'momento de generar este informe'}${!map&&snap.stations.length?'; no hay un plano disponible':''}; puede diferir del control realizado en la fecha del servicio.`;
+  const currentNotice=noCurrentEvidence?'No hay mapa ni estaciones registradas para este cliente. El informe se genera sin el anexo de estaciones.':`No existe una copia histórica de las estaciones para esta visita. Se incluye ${map?'el mapa y el estado':'el listado de estados'} actual consultado el ${capturedLabel||'momento de generar este informe'}${!map&&stations.length?'; no hay un plano disponible':''}; puede diferir del control realizado en la fecha del servicio.`;
   const notice=result.source==='draft'?(snap.visit_revision?(snap.visit_closed_at?'Control de estaciones cerrado. Informe pendiente de firma.':'BORRADOR — control de estaciones abierto; contiene pendientes de revisión.'):'BORRADOR — mapa y estaciones actuales. Se archivarán al firmar el informe.'):historical?'Mapa y estados conservados con el informe preparado para envío.':result.source==='current'?currentNotice:'Este informe no tiene una copia histórica del mapa y las estaciones. No se muestran datos actuales como históricos.';
   if(map&&result.source==='current')map.reportLabel=`Estado actual consultado el ${capturedLabel||'momento de generar este informe'}; puede diferir de la visita`;
   return {service:snap.service,client:snap.client,map,
-   stations:usable?snap.stations.map(stationFromDb):[],consumption:Array.isArray(snap.consumption)?snap.consumption:[],notice,source:result.source};
+   stations:usable?stations.map(stationFromDb):[],consumption:Array.isArray(snap.consumption)?snap.consumption:[],notice,source:result.source};
  }
  async function load(id){
   const owner=sessionUser?.id;if(!owner)throw Error('Inicia sesión.');
