@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-06-stock-expiry-r23">
+<meta name="rokelux-build" content="2026-11-06-stock-minimum-r24">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -15177,7 +15177,7 @@ const Inventory=(()=>{
  const holderName=id=>id===W?'Bodega':people.find(p=>p.user_id===id)?.full_name||(id===actor()?'Mi inventario':'Técnico sin perfil disponible');
  const expired=l=>l.expires<date();
  function reset(){if(owner!==actor()){owner=actor();version++;lots=[];balances=[];people=[];request=null;lotRequest=null;$('stockDialog')?.close();$('stockLotDialog')?.close();$('stockRows').textContent='Actualiza para consultar el inventario de tu usuario.';$('stockStatus').textContent='';}document.querySelectorAll('[data-stock-open]').forEach(b=>b.hidden=!actor());$('stockNew').hidden=!isAdmin();}
- async function refresh(){void StockExpiry.refresh();const uid=actor(),v=++version;if(!uid)return;$('stockStatus').textContent='Consultando inventario en la nube…';
+ async function refresh(){void StockExpiry.refresh();void StockMinimum.refresh();const uid=actor(),v=++version;if(!uid)return;$('stockStatus').textContent='Consultando inventario en la nube…';
   try{const queries=[sb.from('rokelux_stock_lots').select('*').order('created_at',{ascending:false}).limit(200),sb.from('rokelux_stock_balances').select('*')];if(isAdmin())queries.push(sb.from('profiles').select('user_id,full_name,role,active').eq('role','technician'));
    const result=await Promise.all(queries);for(const r of result)if(r.error)throw r.error;if(uid!==actor()||v!==version)return;
    lots=result[0].data;balances=result[1].data;people=result[2]?.data||[];
@@ -15397,6 +15397,14 @@ const StockExpiry=(()=>{
  rows.sort((a,b)=>a.lot.expires.localeCompare(b.lot.expires));const ids=new Set(rows.map(x=>x.lot_id));el.innerHTML='<h3>Vencimientos de productos</h3><p>Existencias positivas vencidas o que vencen en los próximos 30 días, incluido hoy. Fecha de consulta: '+esc(today)+'.</p>'+(rows.length?'<p>'+ids.size+' lotes requieren atención.</p>'+rows.map(r=>'<div style="padding:10px;border-top:1px solid #456"><b>'+esc(status(r.lot.expires,today))+' · '+esc(r.lot.product)+'</b><br>Lote '+esc(r.lot.lot)+' · '+Number(r.quantity)+' '+esc(r.lot.unit)+' · vence '+esc(r.lot.expires)+'<br>'+esc(r.holder==='00000000-0000-0000-0000-000000000000'?'Bodega':r.holder===uid?'Mi inventario':'Inventario de técnico · '+r.holder)+'</div>').join(''):'<p>No hay existencias registradas con vencimiento dentro de este periodo.</p>')+'<p>Los lotes vencidos no se pueden entregar ni consumir. Este aviso no envía correos ni modifica existencias.</p>';
  }catch(e){if(uid===sessionUser?.id&&n===serial)el.textContent='No se pudieron consultar vencimientos: '+e.message;}}
  document.addEventListener('DOMContentLoaded',()=>{const el=document.createElement('section');el.id='stockExpiry';el.className='panel';$('stockRows').before(el);const old=renderAll;renderAll=function(...args){const r=old.apply(this,args);serial++;el.replaceChildren();return r;};});return {refresh,bounds,status};
+})();
+</script>
+<script>
+const StockMinimum=(()=>{
+ const W='00000000-0000-0000-0000-000000000000';let serial=0,rows=[];
+ async function refresh(){const el=$('stockMinimum');if(!el)return;const uid=sessionUser?.id,n=++serial;el.hidden=!isAdmin();if(!isAdmin()){rows=[];el.replaceChildren();return;}el.textContent='Consultando mínimos de bodega…';try{let lots=[],balances=[];for(const table of ['rokelux_stock_lots','rokelux_stock_balances']){for(let offset=0;;offset+=500){let q=sb.from(table).select('*');q=table==='rokelux_stock_lots'?q.order('id'):q.eq('holder',W).order('lot_id');const r=await q.range(offset,offset+499);if(r.error)throw r.error;if(n!==serial||uid!==sessionUser?.id)return;(table==='rokelux_stock_lots'?lots:balances).push(...r.data);if(r.data.length<500)break;}}rows=lots;const today=Inventory.date();el.innerHTML='<h3>Mínimos de bodega</h3><p>Administración define un mínimo por lote en su unidad. Se avisa cuando el saldo utilizable de bodega es igual o inferior al mínimo. No incluye stock entregado a técnicos. Vacío desactiva el aviso.</p>'+(lots.length?lots.map(l=>{const stock=Number(balances.find(b=>b.lot_id===l.id)?.quantity||0),usable=l.expires<today?0:stock,minimum=l.warehouse_minimum;return '<div style="padding:12px;border-top:1px solid #456"><b>'+esc(l.product)+' · '+esc(l.lot)+'</b><p>'+usable+' '+esc(l.unit)+' utilizables'+(l.expires<today?' · lote vencido':'')+(minimum!=null&&usable<=Number(minimum)?' · REPOSICIÓN NECESARIA':'')+'</p><label>Mínimo ('+esc(l.unit)+')<input style="width:100%" type="number" min="0.001" step="'+(l.unit==='unidad'?'1':'0.001')+'" data-min-input="'+esc(l.id)+'" value="'+esc(minimum??'')+'"></label><button class="btn" type="button" data-min-save="'+esc(l.id)+'">Guardar mínimo</button><p data-min-message="'+esc(l.id)+'" role="status"></p></div>';}).join(''):'<p>Crea un lote para configurar su mínimo. No hay mínimos predeterminados.</p>');}catch(e){if(n===serial&&uid===sessionUser?.id)el.textContent='No se pudieron consultar mínimos: '+e.message;}}
+ async function save(id,b){if(!isAdmin()||b.disabled)return;const l=rows.find(x=>x.id===id),uid=sessionUser.id;if(!l)return;const input=document.querySelector('[data-min-input="'+id+'"]'),msg=document.querySelector('[data-min-message="'+id+'"]'),raw=input.value.trim(),value=raw===''?null:Number(raw);if(value!==null&&(!Number.isFinite(value)||value<=0)){msg.textContent='Usa un mínimo positivo o deja vacío para desactivar.';return;}b.disabled=true;input.disabled=true;msg.textContent='Guardando…';try{const r=await sb.rpc('rokelux_stock_minimum',{p_lot:id,p_minimum:value,p_expected:l.warehouse_minimum??null});if(r.error)throw r.error;if(uid!==sessionUser?.id)return;l.warehouse_minimum=r.data.warehouse_minimum;await refresh();}catch(e){if(uid===sessionUser?.id)msg.textContent='No se confirmó: '+e.message;}finally{b.disabled=false;input.disabled=false;}}
+ document.addEventListener('DOMContentLoaded',()=>{const el=document.createElement('section');el.id='stockMinimum';el.className='panel';$('stockRows').before(el);document.addEventListener('click',e=>{const b=e.target.closest('[data-min-save]');if(b)void save(b.dataset.minSave,b);});const old=renderAll;renderAll=function(...a){const r=old.apply(this,a);serial++;rows=[];el.replaceChildren();return r;};});return {refresh};
 })();
 </script>
 </body></html>
