@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-06-stock-minimum-r24">
+<meta name="rokelux-build" content="2026-11-07-report-consumption-r25">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -15263,7 +15263,6 @@ document.addEventListener('DOMContentLoaded',()=>DraftQueue.install());
 
 ;
 // Historical report data is read from the server; never replace an archive with current stations.
-// Historical report data is read from the server; never replace an archive with current stations.
 const ReportEvidence=(()=>{
  function normalize(result,id){
   if(!result||!['archive','draft','missing'].includes(result.source))throw Error('Respuesta de informe incompleta.');
@@ -15275,7 +15274,7 @@ const ReportEvidence=(()=>{
   if(usable&&!complete)throw Error('La copia de estaciones está incompleta.');
   const notice=result.source==='draft'?(snap.visit_revision?(snap.visit_closed_at?'Control de estaciones cerrado. Informe pendiente de firma.':'BORRADOR — control de estaciones abierto; contiene pendientes de revisión.'):'BORRADOR — mapa y estaciones actuales. Se archivarán al firmar el informe.'):historical?'Mapa y estados conservados con el informe preparado para envío.':'Este informe no tiene una copia histórica del mapa y las estaciones. No se muestran datos actuales como históricos.';
   return {service:snap.service,client:snap.client,map:usable&&snap.station_map?mapFromDb(snap.station_map):null,
-   stations:usable?snap.stations.map(stationFromDb):[],notice,source:result.source};
+   stations:usable?snap.stations.map(stationFromDb):[],consumption:Array.isArray(snap.consumption)?snap.consumption:[],notice,source:result.source};
  }
  async function load(id){
   const owner=sessionUser?.id;if(!owner)throw Error('Inicia sesión.');
@@ -15287,8 +15286,6 @@ const ReportEvidence=(()=>{
  return {normalize,load};
 })();
 
-</script>
-<script>
 // Keep the report visible inside the app on mobile and desktop; no popup dependency.
 printServiceReport=async function(){
  const id=$('srService').value,owner=sessionUser?.id;if(!id)return alert('Selecciona un servicio.');
@@ -15319,9 +15316,24 @@ printServiceReport=async function(){
  }catch(e){status.textContent='No se pudo cargar el informe: '+e.message;}
 };
 
+;
+// Format the product usage snapshot returned by the server for the report.
+(()=>{
+ const previous=renderServiceReportDocument;
+ function section(items,archived){
+  if(!items.length)return `<div class="card analysis"><h3>Consumo de productos</h3><p style="font-size:10px">${archived?'No se registró consumo de productos en este servicio.':'Aún no se han registrado consumos para este borrador.'}</p></div>`;
+  return `<div class="section avoid"><h2>Consumo de productos aplicados</h2><table><tr><th>Producto</th><th>Lote</th><th>Cantidad</th><th>Registro</th><th>Observación</th></tr>${items.map(x=>`<tr><td>${esc(x.product||'—')}</td><td>${esc(x.lot||'—')}</td><td>${esc(String(x.quantity??'—'))} ${esc(x.unit||'')}</td><td>${x.created_at?esc(new Date(x.created_at).toLocaleString('es-EC')):'—'}</td><td>${esc(x.notes||'—')}</td></tr>`).join('')}</table><p style="font-size:9px;margin-top:5px">${archived?'Consumo conservado junto al informe firmado.':'BORRADOR — el consumo se conservará al firmar el informe.'}</p></div>`;
+ }
+ renderServiceReportDocument=function(popup,evidence={}){
+  let html='';
+  previous({document:{open(){},write(v){html=v;},close(){}}},evidence);
+  if(!html)return;
+  html=html.replace('<div class="signatures avoid">',section(Array.isArray(evidence.consumption)?evidence.consumption:[],evidence.source==='archive')+'<div class="signatures avoid">');
+  popup.document.open();popup.document.write(html);popup.document.close();
+ };
+})();
 
-</script>
-<script>
+;
 const VisitControl=(()=>{
  let visit=null,owner=null,busy=false,attempt=null;
  const counts=v=>(v?.stations||[]).reduce((n,s)=>{n[s.visit_result]=(n[s.visit_result]||0)+1;return n;},{pending:0,reviewed:0,skipped:0});
@@ -15363,8 +15375,7 @@ const VisitControl=(()=>{
 })();
 
 
-</script>
-<script>
+;
 const StationAlerts=(()=>{
  let current=null,rule=null,serial=0,owner=null,saving=false;
  function assess(v,r){const out={active:0,evaluated:0,faults:0,pending:0,skipped:0,unknown:0};for(const s of v?.stations||[]){if(s.visit_result==='pending'){out.pending++;continue;}if(s.visit_result==='skipped'){out.skipped++;continue;}if(s.visit_result!=='reviewed'){out.unknown++;continue;}if(['Dañada','Obstruida','No encontrada'].includes(s.status)){out.faults++;continue;}const b=unpackStationNotes(s.notes).baitStatus;if(s.status!=='Normal'||!['Picada','Comida','Sin novedad'].includes(b)){out.unknown++;continue;}out.evaluated++;if(b!=='Sin novedad')out.active++;}out.percent=out.evaluated?100*out.active/out.evaluated:null;out.ready=!!r&&out.evaluated>=r.minimum;out.alert=out.ready&&out.percent>=r.threshold;return out;}
@@ -15375,8 +15386,9 @@ const StationAlerts=(()=>{
  function install(){const panel=document.createElement('section');panel.id='stationAlertPanel';panel.hidden=true;panel.className='panel';panel.innerHTML='<h3>Alertas de esta visita</h3><p id="alertResult" role="status"></p><p id="alertContext"></p><button class="btn" id="alertRefresh" type="button">Actualizar alerta</button><div id="alertConfigure"><label style="display:block">Avisar desde este porcentaje de actividad<input id="alertThreshold" type="number" min="0.01" max="100" step="any" style="display:block;width:100%"></label><label style="display:block">Mínimo de estaciones evaluables<input id="alertMinimum" type="number" min="1" max="10000" step="1" style="display:block;width:100%"></label><button class="btn primary" id="alertSave" type="button">Guardar límite del cliente</button></div><p id="alertMessage" role="status"></p>';$('visitSummary').after(panel);$('alertRefresh').onclick=refresh;$('alertSave').onclick=save;}
  document.addEventListener('DOMContentLoaded',install);return {assess,show};
 })();
-</script>
-<script>
+
+
+;
 const ActivityMap=(()=>{
  function category(s){if(s.visit_result==='pending')return ['Pendiente','#64748b'];if(s.visit_result==='skipped')return ['No revisada','#475569'];if(s.visit_result!=='reviewed')return ['Sin clasificar','#64748b'];if(['Dañada','Obstruida','No encontrada'].includes(s.status))return [s.status,'#b45309'];const b=unpackStationNotes(s.notes).baitStatus;if(s.status!=='Normal')return ['Sin clasificar','#64748b'];return b==='Comida'?['Comida','#b91c1c']:b==='Picada'?['Picada','#9a3412']:b==='Sin novedad'?['Sin novedad','#166534']:['Sin clasificar','#64748b'];}
  function positioned(s){return typeof s.x==='number'&&typeof s.y==='number'&&Number.isFinite(s.x)&&Number.isFinite(s.y)&&s.x>=0&&s.x<=100&&s.y>=0&&s.y<=100;}
@@ -15386,8 +15398,8 @@ const ActivityMap=(()=>{
  }
  document.addEventListener('DOMContentLoaded',()=>{const el=document.createElement('section');el.id='visitActivityMap';el.hidden=true;$('visitMap').after(el);});return {category,positioned,render};
 })();
-</script>
-<script>
+
+;
 const StockExpiry=(()=>{
  let serial=0;
  const day=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Guayaquil',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -15398,13 +15410,14 @@ const StockExpiry=(()=>{
  }catch(e){if(uid===sessionUser?.id&&n===serial)el.textContent='No se pudieron consultar vencimientos: '+e.message;}}
  document.addEventListener('DOMContentLoaded',()=>{const el=document.createElement('section');el.id='stockExpiry';el.className='panel';$('stockRows').before(el);const old=renderAll;renderAll=function(...args){const r=old.apply(this,args);serial++;el.replaceChildren();return r;};});return {refresh,bounds,status};
 })();
-</script>
-<script>
+
+;
 const StockMinimum=(()=>{
  const W='00000000-0000-0000-0000-000000000000';let serial=0,rows=[];
  async function refresh(){const el=$('stockMinimum');if(!el)return;const uid=sessionUser?.id,n=++serial;el.hidden=!isAdmin();if(!isAdmin()){rows=[];el.replaceChildren();return;}el.textContent='Consultando mínimos de bodega…';try{let lots=[],balances=[];for(const table of ['rokelux_stock_lots','rokelux_stock_balances']){for(let offset=0;;offset+=500){let q=sb.from(table).select('*');q=table==='rokelux_stock_lots'?q.order('id'):q.eq('holder',W).order('lot_id');const r=await q.range(offset,offset+499);if(r.error)throw r.error;if(n!==serial||uid!==sessionUser?.id)return;(table==='rokelux_stock_lots'?lots:balances).push(...r.data);if(r.data.length<500)break;}}rows=lots;const today=Inventory.date();el.innerHTML='<h3>Mínimos de bodega</h3><p>Administración define un mínimo por lote en su unidad. Se avisa cuando el saldo utilizable de bodega es igual o inferior al mínimo. No incluye stock entregado a técnicos. Vacío desactiva el aviso.</p>'+(lots.length?lots.map(l=>{const stock=Number(balances.find(b=>b.lot_id===l.id)?.quantity||0),usable=l.expires<today?0:stock,minimum=l.warehouse_minimum;return '<div style="padding:12px;border-top:1px solid #456"><b>'+esc(l.product)+' · '+esc(l.lot)+'</b><p>'+usable+' '+esc(l.unit)+' utilizables'+(l.expires<today?' · lote vencido':'')+(minimum!=null&&usable<=Number(minimum)?' · REPOSICIÓN NECESARIA':'')+'</p><label>Mínimo ('+esc(l.unit)+')<input style="width:100%" type="number" min="0.001" step="'+(l.unit==='unidad'?'1':'0.001')+'" data-min-input="'+esc(l.id)+'" value="'+esc(minimum??'')+'"></label><button class="btn" type="button" data-min-save="'+esc(l.id)+'">Guardar mínimo</button><p data-min-message="'+esc(l.id)+'" role="status"></p></div>';}).join(''):'<p>Crea un lote para configurar su mínimo. No hay mínimos predeterminados.</p>');}catch(e){if(n===serial&&uid===sessionUser?.id)el.textContent='No se pudieron consultar mínimos: '+e.message;}}
  async function save(id,b){if(!isAdmin()||b.disabled)return;const l=rows.find(x=>x.id===id),uid=sessionUser.id;if(!l)return;const input=document.querySelector('[data-min-input="'+id+'"]'),msg=document.querySelector('[data-min-message="'+id+'"]'),raw=input.value.trim(),value=raw===''?null:Number(raw);if(value!==null&&(!Number.isFinite(value)||value<=0)){msg.textContent='Usa un mínimo positivo o deja vacío para desactivar.';return;}b.disabled=true;input.disabled=true;msg.textContent='Guardando…';try{const r=await sb.rpc('rokelux_stock_minimum',{p_lot:id,p_minimum:value,p_expected:l.warehouse_minimum??null});if(r.error)throw r.error;if(uid!==sessionUser?.id)return;l.warehouse_minimum=r.data.warehouse_minimum;await refresh();}catch(e){if(uid===sessionUser?.id)msg.textContent='No se confirmó: '+e.message;}finally{b.disabled=false;input.disabled=false;}}
  document.addEventListener('DOMContentLoaded',()=>{const el=document.createElement('section');el.id='stockMinimum';el.className='panel';$('stockRows').before(el);document.addEventListener('click',e=>{const b=e.target.closest('[data-min-save]');if(b)void save(b.dataset.minSave,b);});const old=renderAll;renderAll=function(...a){const r=old.apply(this,a);serial++;rows=[];el.replaceChildren();return r;};});return {refresh};
 })();
+
 </script>
 </body></html>
