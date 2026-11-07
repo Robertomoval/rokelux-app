@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-07-report-consumption-r25">
+<meta name="rokelux-build" content="2026-11-07-report-offline-qr-r26">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -1138,7 +1138,8 @@ function certificatePestsMarkup(values,artwork){
  }).join('')+'</div>';
 }
 
-function printCertificate(id){
+async function printCertificate(id){
+  let validationQr='';try{const v=await sb.rpc('rokelux_document_validation_token',{p_service:id,p_kind:'certificado'});if(!v.error&&v.data){const qr=qrcode(0,'M');qr.addData('https://rokelux-app.vercel.app/verificar.html?token='+encodeURIComponent(v.data),'Byte');qr.make();validationQr=qr.createDataURL(3,5);}}catch{}
   const d=state(),s=d.services.find(x=>x.id===id);if(!s||(isClient()&&s.clientId!==currentClientId()))return alert('Servicio no disponible para este usuario.');const cst=d.clients.find(x=>x.id===s.clientId)||{};
   const certNo="RX-"+s.id.slice(0,8).toUpperCase();
 
@@ -1209,7 +1210,7 @@ function printCertificate(id){
     ${field(s.receivedByRole||"",895,1233,141,"small")}
     ${sigimg(s.clientSignature,895,1251,141,22)}
     ${field(s.certificateSignedAt?new Date(s.certificateSignedAt).toLocaleDateString("es-EC"):"",895,1284,141,"small")}
-  </div></div>
+  </div><div style="position:absolute;right:6mm;bottom:2mm;display:flex;align-items:center;gap:2mm;font:7pt Arial">${validationQr?`<img src="${validationQr}" alt="QR de validación ROKELUX" style="width:12mm;height:12mm"><span>Validación pública<br>ROKELUX</span>`:''}</div></div>
   <script>window.onload=()=>{document.querySelectorAll('.v:not(.obs)').forEach(e=>{let size=parseFloat(getComputedStyle(e).fontSize);while(e.scrollWidth>e.clientWidth&&size>6){size-=.25;e.style.fontSize=size+'px';}});setTimeout(()=>window.print(),350)}<\/script>
   </body></html>`;
 
@@ -15281,7 +15282,11 @@ const ReportEvidence=(()=>{
   const {data,error}=await sb.rpc('rokelux_report_evidence',{p_service:id});
   if(error)throw error;
   if(sessionUser?.id!==owner)throw Error('La sesión cambió. Vuelve a abrir el informe.');
-  return normalize(data,id);
+  const evidence=normalize(data,id);
+  if(data?.source==='archive'){
+   try{const v=await sb.rpc('rokelux_document_validation_token',{p_service:id,p_kind:'informe'});if(!v.error&&typeof v.data==='string')evidence.validationToken=v.data;}catch{}
+  }
+  return evidence;
  }
  return {normalize,load};
 })();
@@ -15328,10 +15333,48 @@ printServiceReport=async function(){
   let html='';
   previous({document:{open(){},write(v){html=v;},close(){}}},evidence);
   if(!html)return;
-  html=html.replace('<div class="signatures avoid">',section(Array.isArray(evidence.consumption)?evidence.consumption:[],evidence.source==='archive')+'<div class="signatures avoid">');
+  let verification='';
+  if(evidence.validationToken){const link='https://rokelux-app.vercel.app/verificar.html?token='+encodeURIComponent(evidence.validationToken),qr=qrcode(0,'M');qr.addData(link,'Byte');qr.make();verification=`<div class="card" style="display:flex;align-items:center;gap:10px;break-inside:avoid"><img src="${qr.createDataURL(3,5)}" alt="QR para validar este informe" style="width:68px;height:68px"><div><b>Validación digital ROKELUX</b><p style="font-size:9px">Escanea el QR para comprobar la autenticidad, tipo y fecha del documento.</p></div></div>`;}
+  html=html.replace('<div class="signatures avoid">',section(Array.isArray(evidence.consumption)?evidence.consumption:[],evidence.source==='archive')+verification+'<div class="signatures avoid">');
   popup.document.open();popup.document.write(html);popup.document.close();
  };
 })();
+
+;
+const DocumentQR=(()=>{
+ async function open(service,kind){const uid=sessionUser?.id;if(!uid)return alert('Inicia sesión para consultar el documento.');try{const r=await sb.rpc('rokelux_document_validation_token',{p_service:service,p_kind:kind});if(r.error)throw r.error;if(sessionUser?.id!==uid)return;if(typeof r.data!=='string'||!r.data)return alert('El documento aún no está firmado o preparado para validación.');window.open('https://rokelux-app.vercel.app/verificar.html?token='+encodeURIComponent(r.data),'_blank','noopener');}catch(e){alert('No se pudo consultar la validación: '+(e.message||e));}}
+ const previous=renderClientDocs;
+ renderClientDocs=function(...args){const value=previous.apply(this,args),box=$('clientDocsList');if(!box||!isClient())return value;const services=[...clientServices()].reverse(),items=[...box.children];items.forEach((item,index)=>{const service=services[index];if(!service)return;for(const [kind,label] of [['certificado','Validar certificado'],['informe','Validar informe']]){const b=document.createElement('button');b.type='button';b.className='btn ghost';b.textContent=label;b.addEventListener('click',()=>void open(service.id,kind));item.appendChild(b);}});return value;};
+ return {open};
+})();
+
+;
+// Opens the last cloud-confirmed copy only for the same recently verified user.
+const OfflineStart=(()=>{
+ const ownerKey='rokelux-offline-owner-v1';let banner;
+ function show(text){if(!banner){banner=document.createElement('div');banner.id='offlineModeNotice';banner.setAttribute('role','status');banner.style.cssText='position:fixed;z-index:250;top:0;left:0;right:0;padding:10px 14px;background:#fff0bd;color:#332700;border-bottom:1px solid #9a7416;font:14px system-ui;text-align:center';document.body.appendChild(banner);}banner.textContent=text;banner.hidden=false;}
+ function hide(){if(banner)banner.hidden=true;}
+ const profileKey=uid=>'rokelux-offline-profile-v1:'+uid;
+ async function readOffline(uid){const [owner,profile]=await Promise.all([cacheTransaction('readonly',s=>s.get(ownerKey)),cacheTransaction('readonly',s=>s.get(profileKey(uid)))]);if(owner?.uid!==uid||Date.now()-Number(owner.verifiedAt||0)>36*60*60*1000||!profile||profile.id!==uid||profile.active!==true)throw Error('Conéctate para verificar tu cuenta y sincronizar los datos antes de usar la app sin conexión.');const data=readAppData();if(!data||data==='{}')throw Error('Este dispositivo no tiene una copia descargada. Conéctate y abre la app una vez.');return profile;}
+ async function rememberOwner(uid){await rokeluxCacheQueue;await cacheTransaction('readwrite',s=>s.put({uid,verifiedAt:Date.now()},ownerKey));}
+ const oldFetchProfile=fetchMyProfile;
+ fetchMyProfile=async function(authUser){const profile=await oldFetchProfile(authUser);if(navigator.onLine)try{await cacheTransaction('readwrite',s=>s.put(profile,profileKey(profile.id)));}catch{}return profile;};
+ const oldLoad=loadCloudState;
+ loadCloudState=async function(...args){const value=await oldLoad.apply(this,args);if(sessionUser?.id)try{await rememberOwner(sessionUser.id);}catch{}return value;};
+ const queueButton=()=>({disabled:false,textContent:'Guardar borrador local'});
+ const oldSaveService=saveService;
+ saveService=async function(...args){if(!navigator.onLine){await DraftQueue.add('service',queueButton());return;}return oldSaveService.apply(this,args);};
+ const oldSaveSignatures=saveCertificateSignatures;
+ saveCertificateSignatures=async function(...args){if(!navigator.onLine){await DraftQueue.add('signatures',queueButton());return;}return oldSaveSignatures.apply(this,args);};
+ const oldSaveSupervisor=saveSupervisorSignature;
+ saveSupervisorSignature=async function(...args){if(!navigator.onLine){await DraftQueue.add('signatures',queueButton());return;}return oldSaveSupervisor.apply(this,args);};
+ const oldRestore=restoreSession;
+ restoreSession=async function(){if(navigator.onLine)return oldRestore.apply(this,arguments);let session;try{session=(await sb.auth.getSession())?.data?.session;}catch{}if(!session){showAuthPanel('login');show('Sin conexión. Abre la app con internet primero para guardar una copia segura de tu cuenta.');return;}try{sessionUser=await readOffline(session.user.id);cloudReady=true;$('loginOverlay').style.display='none';applyRole();renderAll();show('Sin conexión: estás usando datos guardados en este dispositivo. Las acciones que requieren el servidor quedan pendientes.');}catch(e){sessionUser=null;cloudReady=false;showAuthPanel('login');$('loginStatus').textContent=e.message;show('Sin conexión: aún no hay una copia válida de este usuario en el dispositivo.');}};
+ function status(){if(navigator.onLine){hide();return;}if(sessionUser)show('Sin conexión: datos guardados en este dispositivo. Las acciones que requieren el servidor quedan pendientes.');else show('Sin conexión: abre la app con internet primero para guardar una copia de tu cuenta.');}
+ function install(){window.addEventListener('online',()=>{status();if(sessionUser)void loadCloudState().catch(()=>{});});window.addEventListener('offline',status);status();}
+ return {install,rememberOwner};
+})();
+document.addEventListener('DOMContentLoaded',()=>OfflineStart.install());
 
 ;
 const VisitControl=(()=>{
