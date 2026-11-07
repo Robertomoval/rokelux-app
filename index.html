@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-07-report-offline-qr-r27">
+<meta name="rokelux-build" content="2026-11-07-report-offline-qr-r28">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -667,7 +667,7 @@ function mapFromDb(x){return {id:x.id,clientId:x.client_id,site:x.site||"",backg
 function requestToDb(x){return {id:x.id,client_id:x.clientId,user_id:x.userId||null,request_type:x.type||null,message:x.message,photo_url:x.photo||null,status:x.status||"Nueva",created_at:x.date||undefined}}
 function requestFromDb(x){return {id:x.id,clientId:x.client_id,userId:x.user_id,type:x.request_type||"",message:x.message,photo:x.photo_url||"",status:x.status||"Nueva",date:x.created_at}}
 
-async function qTable(table){if(isTech()&&!['clients','services','profiles','stations','station_maps'].includes(table))return [];const {data,error}=await sb.from(table).select('*');if(error)throw Error('No se pudo actualizar '+table+': '+error.message);return data||[]}
+async function qTable(table){if(isTech()&&!['clients','services','profiles','stations','station_maps'].includes(table))return [];const {data,error}=await sb.from(table).select('*');if(error){console.warn(table,error.message);if(error.status===401||error.status===403)return [];throw Error('No se pudo actualizar '+table+': '+error.message)}return data||[]}
 async function loadCloudState(){
   const loadingUser=sessionUser?.id; if(!loadingUser)return; 
   quoteBackupBeforeLoad();
