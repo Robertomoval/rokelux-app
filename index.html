@@ -15286,7 +15286,8 @@ const ReportEvidence=(()=>{
   let {data,error}=await sb.rpc('rokelux_report_evidence',{p_service:id});
   if(error)throw error;
   if(sessionUser?.id!==owner)throw Error('La sesión cambió. Vuelve a abrir el informe.');
-  if(data?.source==='missing'||(data?.source==='archive'&&data.has_station_archive!==true)){
+  const archivedEvidenceComplete=data?.source==='archive'&&data.has_station_archive===true&&Array.isArray(data.snapshot?.stations)&&data.snapshot.stations.every(s=>s&&typeof s==='object'&&typeof s.code==='string')&&!!data.snapshot?.station_map;
+  if(data?.source==='missing'||(data?.source==='archive'&&!archivedEvidenceComplete)){
    const cid=data.snapshot?.service?.client_id;
    if(!cid)throw Error('El servicio no contiene el cliente para consultar sus estaciones.');
    const [mapResult,stationResult]=await Promise.all([
