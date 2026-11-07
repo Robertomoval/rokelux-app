@@ -2057,7 +2057,21 @@ const Orders={
   const uid=sessionUser.id;serviceWriteBusy=true;
   try{
    const {data:live,error:oe}=await sb.from('rokelux_dispatch').select('*').eq('id',order.id).single();if(oe)throw oe;
-   if(live.status==='cancelled'||(isTech()&&live.technician_id!==uid))throw Error('La orden ya no está dispo<script>
+   if(live.status==='cancelled'||(isTech()&&live.technician_id!==uid))throw Error('La orden ya no está disponible para tu usuario.');
+   const {data:existing,error:re}=await sb.from('services').select('*').eq('dispatch_order_id',order.id).maybeSingle();if(re)throw re;
+   const patch={service_date:$('sDate').value,service_type:$('sType').value,areas:$('sAreas').value,pests:selected('sp'),products:selected('pr'),other_product:$('sOtherProduct').value,notes:$('sNotes').value,photos:uniqueServicePhotos([...(existing?.photos||[]),...currentPhotos]),activity:getActivityData()};
+   let result=existing?await sb.from('services').update(patch).eq('id',existing.id).select('*').single():await sb.from('services').insert({...patch,id:servicePendingId,client_id:live.client_id,dispatch_order_id:live.id,created_by:uid,technician_name:live.technician_name}).select('*').single();
+   if(result.error?.code==='23505')throw Error('Esta orden ya tiene un servicio. Vuelve a abrirla desde Mis órdenes para continuar sin duplicarlo.');
+   if(result.error)throw result.error;
+   if(sessionUser?.id!==uid)return;
+   cacheConfirmedService(result.data);selectedServiceOrder=null;servicePendingId=null;currentPhotos=[];$('photoGrid').innerHTML='';$('sClient').disabled=false;
+   alert('Servicio guardado en su orden. Completa las firmas para finalizar y enviar el certificado.');openCertificateSign(result.data.id);
+  }catch(e){alert('No se pudo guardar la orden: '+e.message);}finally{serviceWriteBusy=false;}
+ }
+};
+
+</script>
+<script>
 /* qrcode-generator 1.4.4
 MIT License
 
@@ -15515,20 +15529,6 @@ const StockMinimum=(()=>{
   catch(e){await sb.auth.signOut({scope:'local'});sessionUser=null;cloudReady=false;if(loginOverlay())loginOverlay().style.display='grid';$('loginStatus').textContent='No se pudo cargar la información: '+(e.message||e);}
  };
 })();
-
-</script>
-nible para tu usuario.');
-   const {data:existing,error:re}=await sb.from('services').select('*').eq('dispatch_order_id',order.id).maybeSingle();if(re)throw re;
-   const patch={service_date:$('sDate').value,service_type:$('sType').value,areas:$('sAreas').value,pests:selected('sp'),products:selected('pr'),other_product:$('sOtherProduct').value,notes:$('sNotes').value,photos:uniqueServicePhotos([...(existing?.photos||[]),...currentPhotos]),activity:getActivityData()};
-   let result=existing?await sb.from('services').update(patch).eq('id',existing.id).select('*').single():await sb.from('services').insert({...patch,id:servicePendingId,client_id:live.client_id,dispatch_order_id:live.id,created_by:uid,technician_name:live.technician_name}).select('*').single();
-   if(result.error?.code==='23505')throw Error('Esta orden ya tiene un servicio. Vuelve a abrirla desde Mis órdenes para continuar sin duplicarlo.');
-   if(result.error)throw result.error;
-   if(sessionUser?.id!==uid)return;
-   cacheConfirmedService(result.data);selectedServiceOrder=null;servicePendingId=null;currentPhotos=[];$('photoGrid').innerHTML='';$('sClient').disabled=false;
-   alert('Servicio guardado en su orden. Completa las firmas para finalizar y enviar el certificado.');openCertificateSign(result.data.id);
-  }catch(e){alert('No se pudo guardar la orden: '+e.message);}finally{serviceWriteBusy=false;}
- }
-};
 
 </script>
 </body></html>
