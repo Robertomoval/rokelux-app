@@ -1210,7 +1210,7 @@ async function printCertificate(id){
     ${field(s.receivedByRole||"",895,1233,141,"small")}
     ${sigimg(s.clientSignature,895,1251,141,22)}
     ${field(s.certificateSignedAt?new Date(s.certificateSignedAt).toLocaleDateString("es-EC"):"",895,1284,141,"small")}
-  </div><div style="position:absolute;right:6mm;bottom:2mm;display:flex;align-items:center;gap:2mm;font:7pt Arial">${validationQr?`<img src="${validationQr}" alt="QR de validación ROKELUX" style="width:12mm;height:12mm"><span>Validación pública<br>ROKELUX</span>`:''}</div></div>
+  </div><div style="position:absolute;left:50%;top:274mm;transform:translateX(-50%);display:flex;align-items:center;gap:2mm;font:7pt Arial;z-index:5">${validationQr?`<img src="${validationQr}" alt="QR de validación ROKELUX" style="width:12mm;height:12mm"><span>Validación pública<br>ROKELUX</span>`:''}</div></div>
   <script>window.onload=()=>{document.querySelectorAll('.v:not(.obs)').forEach(e=>{let size=parseFloat(getComputedStyle(e).fontSize);while(e.scrollWidth>e.clientWidth&&size>6){size-=.25;e.style.fontSize=size+'px';}});setTimeout(()=>window.print(),350)}<\/script>
   </body></html>`;
 
@@ -1484,7 +1484,7 @@ function reportStationHtml(map,stations){
  const pos=v=>Math.max(0,Math.min(100,Number(v)||0));
  const pins=stations.map(s=>`<span style="position:absolute;left:${pos(s.x)}%;top:${pos(s.y)}%;transform:translate(-50%,-50%);background:${baitColor(s.baitStatus)};color:#111;border:1px solid #333;border-radius:4px;font-size:9px;padding:3px">${esc(s.code)}</span>`).join('');
  const rows=[...stations].sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true})).map(s=>`<tr><td><b>${esc(s.code)} – ${esc(baitLabel(s.baitStatus))}</b></td><td>${esc(s.status==='Operativa'?'Normal':s.status)}</td><td>${esc(fmt(s.lastCheck)||'—')}</td><td>${esc(s.notes||'')}</td></tr>`).join('');
- return `<div class="section"><h2>Estaciones de roedores</h2><p style="font-size:10px">${esc(map?.site||'Mapa de estaciones')} · Estados registrados</p>${map?.background?`<div style="position:relative;width:100%;aspect-ratio:16/10;overflow:hidden;break-inside:avoid"><img src="${esc(map.background)}" alt="Mapa de estaciones" style="display:block;width:100%;height:100%;object-fit:cover">${pins}</div>`:''}<table><thead><tr><th>Estación – cebo</th><th>Estado de trampa</th><th>Última revisión</th><th>Observaciones</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Sin estaciones registradas.</td></tr>'}</tbody></table></div>`;
+  return `<div class="section"><h2>Estaciones de roedores</h2><p style="font-size:10px">${esc(map?.site||'Mapa de estaciones')} · ${esc(map?.reportLabel||'Estados registrados')}</p>${map?.background?`<div style="position:relative;width:100%;aspect-ratio:16/10;overflow:hidden;break-inside:avoid"><img src="${esc(map.background)}" alt="Mapa de estaciones" style="display:block;width:100%;height:100%;object-fit:cover">${pins}</div>`:''}<table><thead><tr><th>Estación – cebo</th><th>Estado de trampa</th><th>Última revisión</th><th>Observaciones</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Sin estaciones registradas.</td></tr>'}</tbody></table></div>`;
 }
 async function loadReportStations(cid){
  const [m,s]=await Promise.all([sb.from('station_maps').select('*').eq('client_id',cid).maybeSingle(),sb.from('stations').select('*').eq('client_id',cid)]);
@@ -15264,22 +15264,40 @@ document.addEventListener('DOMContentLoaded',()=>DraftQueue.install());
 // Historical report data is read from the server; never replace an archive with current stations.
 const ReportEvidence=(()=>{
  function normalize(result,id){
-  if(!result||!['archive','draft','missing'].includes(result.source))throw Error('Respuesta de informe incompleta.');
+  if(!result||!['archive','draft','current','missing'].includes(result.source))throw Error('Respuesta de informe incompleta.');
   const snap=result.snapshot;
   if(!snap?.service||snap.service.id!==id||!snap.client||snap.client.id!==snap.service.client_id)throw Error('La copia del informe no corresponde al servicio.');
   const complete=Array.isArray(snap.stations)&&snap.stations.every(s=>s&&typeof s==='object'&&typeof s.code==='string');
   const historical=result.source==='archive'&&result.has_station_archive===true&&complete;
-  const usable=historical||result.source==='draft';
+  const usable=historical||result.source==='draft'||result.source==='current';
   if(usable&&!complete)throw Error('La copia de estaciones está incompleta.');
-  const notice=result.source==='draft'?(snap.visit_revision?(snap.visit_closed_at?'Control de estaciones cerrado. Informe pendiente de firma.':'BORRADOR — control de estaciones abierto; contiene pendientes de revisión.'):'BORRADOR — mapa y estaciones actuales. Se archivarán al firmar el informe.'):historical?'Mapa y estados conservados con el informe preparado para envío.':'Este informe no tiene una copia histórica del mapa y las estaciones. No se muestran datos actuales como históricos.';
-  return {service:snap.service,client:snap.client,map:usable&&snap.station_map?mapFromDb(snap.station_map):null,
+  const capturedAt=snap.stations_captured_at?new Date(snap.stations_captured_at):null;
+  const capturedLabel=capturedAt&&!Number.isNaN(capturedAt.valueOf())?new Intl.DateTimeFormat('es-EC',{dateStyle:'medium',timeStyle:'short'}).format(capturedAt):'';
+  const noCurrentEvidence=result.source==='current'&&!snap.station_map&&!snap.stations.length;
+  const map=usable&&snap.station_map?mapFromDb(snap.station_map):null;
+  const currentNotice=noCurrentEvidence?'No hay mapa ni estaciones registradas para este cliente. El informe se genera sin el anexo de estaciones.':`No existe una copia histórica de las estaciones para esta visita. Se incluye ${map?'el mapa y el estado':'el listado de estados'} actual consultado el ${capturedLabel||'momento de generar este informe'}${!map&&snap.stations.length?'; no hay un plano disponible':''}; puede diferir del control realizado en la fecha del servicio.`;
+  const notice=result.source==='draft'?(snap.visit_revision?(snap.visit_closed_at?'Control de estaciones cerrado. Informe pendiente de firma.':'BORRADOR — control de estaciones abierto; contiene pendientes de revisión.'):'BORRADOR — mapa y estaciones actuales. Se archivarán al firmar el informe.'):historical?'Mapa y estados conservados con el informe preparado para envío.':result.source==='current'?currentNotice:'Este informe no tiene una copia histórica del mapa y las estaciones. No se muestran datos actuales como históricos.';
+  if(map&&result.source==='current')map.reportLabel=`Estado actual consultado el ${capturedLabel||'momento de generar este informe'}; puede diferir de la visita`;
+  return {service:snap.service,client:snap.client,map,
    stations:usable?snap.stations.map(stationFromDb):[],consumption:Array.isArray(snap.consumption)?snap.consumption:[],notice,source:result.source};
  }
  async function load(id){
   const owner=sessionUser?.id;if(!owner)throw Error('Inicia sesión.');
-  const {data,error}=await sb.rpc('rokelux_report_evidence',{p_service:id});
+  let {data,error}=await sb.rpc('rokelux_report_evidence',{p_service:id});
   if(error)throw error;
   if(sessionUser?.id!==owner)throw Error('La sesión cambió. Vuelve a abrir el informe.');
+  if(data?.source==='missing'||(data?.source==='archive'&&data.has_station_archive!==true)){
+   const cid=data.snapshot?.service?.client_id;
+   if(!cid)throw Error('El servicio no contiene el cliente para consultar sus estaciones.');
+   const [mapResult,stationResult]=await Promise.all([
+    sb.from('station_maps').select('*').eq('client_id',cid).maybeSingle(),
+    sb.from('stations').select('*').eq('client_id',cid).order('code')
+   ]);
+   if(mapResult.error)throw Error('No se pudo consultar el mapa actual: '+mapResult.error.message);
+   if(stationResult.error)throw Error('No se pudieron consultar las estaciones actuales: '+stationResult.error.message);
+   if(sessionUser?.id!==owner)throw Error('La sesión cambió. Vuelve a abrir el informe.');
+   data={...data,source:'current',snapshot:{...data.snapshot,station_map:mapResult.data,stations:stationResult.data||[],stations_captured_at:new Date().toISOString()}};
+  }
   const evidence=normalize(data,id);
   if(data?.source==='archive'){
    try{const v=await sb.rpc('rokelux_document_validation_token',{p_service:id,p_kind:'informe'});if(!v.error&&typeof v.data==='string')evidence.validationToken=v.data;}catch{}
