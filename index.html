@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-07-report-offline-qr-r29">
+<meta name="rokelux-build" content="2026-11-07-report-offline-qr-r30">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -688,7 +688,7 @@ async function syncCloudState(d){
   try{
     const admin=isAdmin(),tech=isTech();
     if(admin)await syncCollection('clients',d.clients.map(c=>({id:c.id,name:c.name,doc:c.doc||null,phone:c.phone||null,address:c.address||null,email:c.email||null,latitude:c.latitude??null,longitude:c.longitude??null,active:c.active!==false})),true);
-    if(admin||tech){await syncCollection('inspections',d.inspections.map(inspectionToDb),admin);}
+    if(admin)await syncCollection('inspections',d.inspections.map(inspectionToDb),true);
     if(admin){await syncCollection('invoices',d.invoices.map(invoiceToDb),true)}
     if(isClient())await syncCollection('requests',d.requests.map(requestToDb),false);
   }finally{cloudSyncBusy=false}
@@ -15196,7 +15196,7 @@ const Inventory=(()=>{
  function identity(previous,payload){const key=JSON.stringify(payload);return previous?.key===key?previous:{key,id:crypto.randomUUID()};}
  async function move(){if(busy||!actor())return;const uid=actor();busy=true;const controls=[...$('stockForm').querySelectorAll('button,input,select,textarea')];controls.forEach(e=>e.disabled=true);$('stockMessage').textContent='Guardando movimiento…';
   try{const kind=$('stockKind').value,p={p_lot:$('stockLotId').value,p_kind:kind,p_holder:kind==='entry'?W:$('stockHolder').value,p_quantity:Number($('stockQuantity').value),p_client:null,p_service:kind==='consume'?$('stockClient').value:null,p_notes:$('stockNotes').value.trim()};
-   if(!Number.isFinite(p.p_quantity)||p.p_quantity<=0||!p.p_notes||(kind==='consume'&&!p.p_service))throw Error('Completa cantidad positiva, motivo y servicio para consumo');request=identity(request,p);const r=kind==='consume'?await sb.rpc('rokelux_consume_service',{p_id:request.id,p_lot:p.p_lot,p_holder:p.p_holder,p_quantity:p.p_quantity,p_service:p.p_service,p_notes:p.p_notes}):await sb.rpc('rokelux_move_stock',{p_id:request.id,p_lot:p.p_lot,p_kind:p.p_kind,p_holder:p.p_holder,p_quantity:p.p_quantity,p_client:null,p_notes:p.p_notes});if(r.error)throw r.error;if(uid!==actor())return;
+   if(!Number.isFinite(p.p_quantity)||p.p_quantity<=0||!p.p_notes||(kind==='consume'&&!p.p_service))throw Error('Completa cantidad positiva, motivo y servicio para consumo');request=identity(request,p);if(!navigator.onLine){if(kind!=='consume')throw Error('Los movimientos de bodega requieren conexión.');await OfflineStart.enqueue('stock_consume',uid,request.id,{p_id:request.id,p_lot:p.p_lot,p_holder:p.p_holder,p_quantity:p.p_quantity,p_service:p.p_service,p_notes:p.p_notes});if(uid!==actor())return;$('stockDialog').close();$('stockStatus').textContent='Consumo guardado localmente como pendiente. Se verificará el saldo y se registrará al volver internet.';return;}const r=kind==='consume'?await sb.rpc('rokelux_consume_service',{p_id:request.id,p_lot:p.p_lot,p_holder:p.p_holder,p_quantity:p.p_quantity,p_service:p.p_service,p_notes:p.p_notes}):await sb.rpc('rokelux_move_stock',{p_id:request.id,p_lot:p.p_lot,p_kind:p.p_kind,p_holder:p.p_holder,p_quantity:p.p_quantity,p_client:null,p_notes:p.p_notes});if(r.error)throw r.error;if(uid!==actor())return;
    $('stockDialog').close();await refresh();$('stockStatus').textContent='Movimiento guardado en la nube. '+$('stockStatus').textContent;
   }catch(e){$('stockMessage').textContent='No se confirmó el movimiento: '+e.message+'. Conserva el formulario para reintentar.';}finally{busy=false;controls.forEach(e=>e.disabled=false);config();}
  }
@@ -15364,11 +15364,12 @@ const OfflineStart=(()=>{
  async function setOperation(op,patch){await cacheTransaction('readwrite',s=>s.put({...op,...patch},op.key));paintQueue();}
  function mapSnapshot(row){return row?{site:row.site||'',background_url:row.background_url||''}:null;}
  async function sync(){if(syncBusy||!navigator.onLine||!sessionUser?.id)return;const uid=sessionUser.id;syncBusy=true;try{for(const op of await operations(uid)){if(sessionUser?.id!==uid||!navigator.onLine)break;try{
-   if(op.type==='inspection'){const r=await sb.from('inspections').upsert(inspectionToDb(op.payload),{onConflict:'id'}).select('id').single();if(r.error)throw r.error;}
+   if(op.type==='inspection'){const expected=inspectionToDb(op.payload),same=row=>row&&row.id===expected.id&&row.client_id===expected.client_id&&row.inspection_date===expected.inspection_date&&row.address===expected.address&&row.installation_type===expected.installation_type&&row.contact===expected.contact&&row.notes===expected.notes&&JSON.stringify(row.pests||[])===JSON.stringify(expected.pests||[])&&row.created_by===expected.created_by;let old=await sb.from('inspections').select('*').eq('id',op.id).maybeSingle();if(old.error)throw old.error;if(old.data){if(!same(old.data)){const conflict=Error('La inspección ya existe con datos diferentes. Conserva la versión local para revisión.');conflict.permanent=true;throw conflict;}}else{const r=await sb.from('inspections').insert(expected).select('id').single();if(r.error){if(r.error.code!=='23505')throw r.error;old=await sb.from('inspections').select('*').eq('id',op.id).maybeSingle();if(old.error||!same(old.data)){const conflict=Error('La inspección entró en conflicto al sincronizar.');conflict.permanent=true;throw conflict;}}}}
    else if(op.type==='station_map'){const q=await sb.from('station_maps').select('*').eq('client_id',op.id).maybeSingle();if(q.error)throw q.error;const current=mapSnapshot(q.data);if(JSON.stringify(current)!==JSON.stringify(op.base)){const conflict=Error('El mapa cambió en la nube. Conservamos esta versión para revisión.');conflict.permanent=true;throw conflict;}const r=await sb.from('station_maps').upsert({client_id:op.id,...op.payload},{onConflict:'client_id'}).select('*').single();if(r.error)throw r.error;}
    else if(op.type==='station_create'){const r=await sb.from('stations').insert(op.payload).select('id,client_id,code').single();if(r.error){if(r.error.code!=='23505')throw r.error;const old=await sb.from('stations').select('id,client_id,code').eq('id',op.id).maybeSingle();if(old.error||old.data?.client_id!==op.payload.client_id||old.data?.code!==op.payload.code)throw Error('La estación entró en conflicto con otro cambio.');}}
    else if(op.type==='station_review'){const r=await sb.rpc('rokelux_review_station',op.payload);if(r.error)throw r.error;}
    else if(op.type==='visit_action'){const r=await sb.rpc('rokelux_visit',op.payload);if(r.error)throw r.error;}
+   else if(op.type==='stock_consume'){const r=await sb.rpc('rokelux_consume_service',op.payload);if(r.error)throw r.error;await Inventory.refresh();}
    else throw Error('Tipo de cambio local desconocido.');
    if(sessionUser?.id!==uid)return;await cacheTransaction('readwrite',s=>s.delete(op.key));
   }catch(e){if(sessionUser?.id!==uid)return;const temporary=!e.permanent&&(!navigator.onLine||e.name==='TypeError'||['57014','53300','57P01'].includes(e.code));await setOperation(op,{status:temporary?'pending':'blocked',error:e.message||'Revisa el cambio antes de sincronizar.'});break;}}
@@ -15381,7 +15382,7 @@ const OfflineStart=(()=>{
  const oldSync=syncCloudState;
  syncCloudState=async function(d){if(!navigator.onLine)return;return oldSync.call(this,d);};
  const oldInspection=saveInspection;
- saveInspection=function(){const offline=!navigator.onLine,uid=sessionUser?.id,before=new Set(state().inspections.map(x=>x.id));oldInspection();if(!offline||uid!==sessionUser?.id)return;const d=state(),row=[...d.inspections].reverse().find(x=>!before.has(x.id));if(!row)return;row.createdBy=uid;writeAppData(JSON.stringify(d));void enqueue('inspection',uid,row.id,row).then(()=>show('Inspección guardada en este dispositivo; se sincronizará al recuperar conexión.')).catch(e=>alert('La inspección quedó en pantalla, pero no se pudo poner en la cola local: '+e.message));};
+ saveInspection=function(){const offline=!navigator.onLine,restricted=isTech(),uid=sessionUser?.id,before=new Set(state().inspections.map(x=>x.id));oldInspection();if((!offline&&!restricted)||uid!==sessionUser?.id)return;const d=state(),row=[...d.inspections].reverse().find(x=>!before.has(x.id));if(!row)return;row.createdBy=uid;writeAppData(JSON.stringify(d));void enqueue('inspection',uid,row.id,row).then(()=>{show(offline?'Inspección guardada en este dispositivo; se sincronizará al recuperar conexión.':'Inspección guardada y puesta en la cola segura de sincronización.');if(navigator.onLine)void sync();}).catch(e=>alert('La inspección quedó en pantalla, pero no se pudo poner en la cola local: '+e.message));};
  const queueButton=()=>({disabled:false,textContent:'Guardar borrador local'});
  const oldSaveService=saveService;
  saveService=async function(...args){if(!navigator.onLine){await DraftQueue.add('service',queueButton());return;}return oldSaveService.apply(this,args);};
