@@ -41,9 +41,18 @@
 .pest-visual img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;transition:transform .45s ease,filter .35s;filter:saturate(.96) contrast(1.04)}
 .pest-card:hover .pest-visual img{transform:scale(1.04);filter:saturate(1.08) contrast(1.05)}
 /* La foto comparativa incluía marca y rótulos; el encuadre los deja fuera. */
-.pest-card.pest-ratas-y-ratones .pest-visual{height:142px}
-.pest-card.pest-ratas-y-ratones .pest-visual img{object-position:center 60%}
-@media(max-width:720px){.pest-visual{height:190px}.pest-card.pest-ratas-y-ratones .pest-visual{height:155px}}
+.pest-card.pest-ratas-y-ratones .pest-visual{height:200px}
+ .pest-card.pest-ratas-y-ratones .pest-visual img{object-position:center center}
+@media(max-width:720px){.pest-visual{height:190px}.pest-card.pest-ratas-y-ratones .pest-visual{height:190px}}
 
-/* Oculta la marca incrustada en la fotografía comparativa, sin tapar los roedores. */
-.pest-card.pest-ratas-y-ratones .pest-visual:after{display:block;content:"";position:absolute;top:12%;right:3%;left:auto;bottom:auto;width:40%;height:35%;border:0;border-radius:0;background:#fff;pointer-events:none;z-index:2}
+/* Redes sociales visibles en el pie */
+.footer-social{display:grid;gap:7px}
+.footer-social-title{color:#aebbb1;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.footer-social-links{display:flex;gap:8px}
+.social-link{display:flex;align-items:center;gap:9px;min-height:44px;padding:7px 11px;border:1px solid rgba(219,255,229,.18);border-radius:12px;background:rgba(14,27,20,.72);transition:border-color .2s,background .2s,transform .2s}
+.social-link:hover{border-color:var(--lime);background:rgba(145,242,11,.08);transform:translateY(-2px)}
+.social-link svg{width:19px;height:19px;color:var(--lime);flex:0 0 auto}
+.social-link span{display:grid;line-height:1.2}
+.social-link strong{font-size:12px;color:var(--white)}
+.social-link small{font-size:10px;color:var(--muted)}
+@media(max-width:720px){.footer-social{width:100%;margin-top:2px}.footer-social-links{flex-wrap:wrap}.social-link{min-width:140px}}
