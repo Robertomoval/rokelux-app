@@ -23,3 +23,13 @@
 .pest-guide{padding-top:76px}.pest-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.pest-card{padding:23px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(145deg,rgba(17,31,22,.92),rgba(9,18,12,.95))}.pest-card h3{font-size:19px;margin:0 0 12px}.pest-card p{font-size:13px;line-height:1.65;color:#a7b6aa;margin:0 0 11px}.pest-card p b{color:#dce9dd}.pest-card .pest-about{color:#d2ded4}.pest-tag{display:inline-block;margin-bottom:13px;padding:5px 9px;border:1px solid rgba(145,242,11,.23);border-radius:999px;color:#c7ff85;background:rgba(145,242,11,.06);font-size:9px;font-weight:800;letter-spacing:.1em}.pest-card a{color:var(--lime);font-size:11px;font-weight:700}.pest-card a:hover{text-decoration:underline}.source-separator{padding:0 5px;color:#829285}.pest-disclaimer{margin:18px 0 0;padding:15px 17px;border-left:3px solid var(--lime);border-radius:0 12px 12px 0;background:rgba(145,242,11,.055);color:#aab9ad;font-size:12px;line-height:1.6}
 @media(max-width:980px){.pest-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.pest-guide{padding-top:55px}.pest-grid{grid-template-columns:1fr}.pest-card{padding:20px}.pest-card h3{font-size:18px}}
+
+/* Ilustraciones editoriales para fichas de plagas */
+.pest-card{padding:14px;overflow:hidden}.pest-card .pest-tag{margin:2px 0 10px 5px}
+.pest-visual{height:150px;display:grid;place-items:center;overflow:hidden;position:relative;border:1px solid rgba(180,255,190,.09);border-radius:15px;background:radial-gradient(ellipse at 50% 55%,rgba(145,242,11,.12),transparent 57%),linear-gradient(140deg,#14291c,#0a1510 76%);margin-bottom:17px}
+.pest-visual:before,.pest-visual:after{content:"";position:absolute;border:1px solid rgba(145,242,11,.1);border-radius:50%;width:122px;height:122px}
+.pest-visual:after{width:88px;height:88px;border-style:dashed;opacity:.7}
+.pest-visual svg{position:relative;z-index:1;width:min(74%,220px);height:105px;filter:drop-shadow(0 0 12px rgba(145,242,11,.19));transition:transform .25s ease}
+.pest-card:hover .pest-visual svg{transform:scale(1.08)}
+.pest-card h3{margin:0 5px 10px}.pest-card p,.pest-card>a{margin-left:5px;margin-right:5px}.pest-card{padding-bottom:20px}
+@media(max-width:720px){.pest-visual{height:170px}.pest-visual svg{height:120px}}
