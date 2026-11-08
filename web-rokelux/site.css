@@ -44,3 +44,6 @@
 .pest-card.pest-ratas-y-ratones .pest-visual{height:142px}
 .pest-card.pest-ratas-y-ratones .pest-visual img{object-position:center 60%}
 @media(max-width:720px){.pest-visual{height:190px}.pest-card.pest-ratas-y-ratones .pest-visual{height:155px}}
+
+/* Oculta la marca incrustada en la fotografía comparativa, sin tapar los roedores. */
+.pest-card.pest-ratas-y-ratones .pest-visual:after{display:block;content:"";position:absolute;top:12%;right:3%;left:auto;bottom:auto;width:40%;height:35%;border:0;border-radius:0;background:#fff;pointer-events:none;z-index:2}
