@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-07-certificate-signatures-qr-r32">
+<meta name="rokelux-build" content="2026-11-17-report-spacing-photos-r33">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -11,9 +11,9 @@
     :root{--bg:#080b09;--card:#111713;--card2:#151d17;--green:#8cff00;--green2:#66cc00;--text:#f4f6f4;--muted:#9da8a0;--line:#253128;--white:#fff;--danger:#ff5b5b}
     *{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#050806,#0b100c 45%,#060806);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     button,input,select,textarea{font:inherit}.app{min-height:100vh;padding-bottom:82px}.shell{max-width:760px;margin:auto}
-    header{position:sticky;top:0;z-index:30;background:rgba(8,11,9,.92);backdrop-filter:blur(18px);border-bottom:1px solid #1d261f;padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+    header{position:sticky;top:0;z-index:30;background:rgba(8,11,9,.92);backdrop-filter:blur(18px);border-bottom:1px solid #1d261f;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.user-menu{min-width:0;max-width:100%;flex-wrap:wrap;justify-content:flex-end}.brand{min-width:0;flex:1 1 auto}
     .brand{display:flex;align-items:center;gap:10px}.brand img{width:132px;height:44px;object-fit:contain;object-position:left center;filter:brightness(1.08)} .badge{font-size:11px;color:var(--green);font-weight:800}
-    .content{padding:16px}.hero{background:radial-gradient(circle at 85% 0%,rgba(140,255,0,.22),transparent 28%),linear-gradient(135deg,#101a12,#090d0a 65%);border:1px solid #243326;border-radius:24px;padding:20px;box-shadow:0 12px 50px rgba(0,0,0,.35)}
+    .content{width:min(100%,1120px);margin-inline:auto;padding:16px}.hero{background:radial-gradient(circle at 85% 0%,rgba(140,255,0,.22),transparent 28%),linear-gradient(135deg,#101a12,#090d0a 65%);border:1px solid #243326;border-radius:24px;padding:20px;box-shadow:0 12px 50px rgba(0,0,0,.35)}
     h1,h2,h3,p{margin:0}.hero h1{font-size:30px;line-height:1.05}.hero h1 span{color:var(--green)}.hero p{color:#b8c2bb;margin-top:8px}.actions{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:18px}
     .btn{border:0;border-radius:14px;padding:13px 14px;font-weight:800;cursor:pointer}.btn.primary{background:linear-gradient(135deg,var(--green),#60d000);color:#071007}.btn.secondary{background:#171f19;color:white;border:1px solid #2a372d}.btn.ghost{background:transparent;border:1px solid #39483d;color:#dce3de}.btn.danger{background:#351515;color:#ffb1b1}
     .section-title{display:flex;justify-content:space-between;align-items:center;margin:22px 2px 10px}.section-title h2{font-size:18px}.muted{color:var(--muted);font-size:13px}
@@ -59,11 +59,11 @@
     .totals .line{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2b352d}
     .totals .grand{font-size:18px;font-weight:900;color:var(--green)}
     .sri-note{background:#161a13;border:1px solid #54631e;border-left:4px solid var(--green);padding:12px;border-radius:12px;color:#cdd6cf;font-size:12px;line-height:1.4}
-    .map-wrap{position:relative;width:100%;aspect-ratio:16/10;border-radius:18px;overflow:hidden;border:1px solid #334238;background:
+    .map-wrap{position:relative;width:100%;height:clamp(280px,52vh,520px);border-radius:18px;overflow:hidden;border:1px solid #334238;background:
       linear-gradient(rgba(140,255,0,.05) 1px,transparent 1px),
       linear-gradient(90deg,rgba(140,255,0,.05) 1px,transparent 1px),#101612;
       background-size:28px 28px;background-position:center}
-    .map-wrap.has-bg{background-size:cover;background-position:center;background-repeat:no-repeat}
+    .map-wrap.has-bg{background-size:contain;background-position:center;background-repeat:no-repeat;background-color:#080b09}
     .station-pin{position:absolute;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#081008;font-size:10px;font-weight:900;border:3px solid #071007;box-shadow:0 5px 18px rgba(0,0,0,.45);cursor:pointer}
     .station-pin.attention{background:#ffd45f}.station-pin.replace{background:#ff806e}
     .map-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;font-size:11px;color:#b7c1b9}
@@ -216,7 +216,7 @@ input[hidden],div[hidden]{display:none!important}.dashboard-tools{margin-top:18p
       </div>
       <div class="panel"><h3>Productos / métodos aplicados</h3><div id="products" class="chips"></div><div class="field" style="margin-top:12px"><label for="sOtherProduct">Nombre del químico / producto (manual)</label><input id="sOtherProduct" maxlength="250" placeholder="Escribe el nombre del producto aplicado"></div></div>
       <div class="panel"><h3>Observaciones y recomendaciones</h3><textarea id="sNotes" style="width:100%;min-height:100px;border:0;border-radius:12px;padding:12px"></textarea></div>
-      <div class="panel"><h3>Evidencia fotográfica</h3><input id="photoInput" type="file" accept="image/*" multiple onchange="previewPhotos(event)"><div id="photoGrid" class="photos" style="margin-top:10px"></div></div>
+      <div class="panel"><h3>Evidencia fotográfica</h3><input id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" multiple onchange="previewPhotos(event)"><p id="photoCount" class="note" role="status" style="margin-top:6px">Puedes añadir fotos por tandas, hasta 30 por servicio.</p><div id="photoGrid" class="photos" style="margin-top:10px"></div></div>
       <button class="btn primary" style="width:100%" onclick="saveService()">Finalizar servicio</button>
     </section>
 
@@ -1048,20 +1048,20 @@ function renderSavedServicePhotos(s){const photos=uniqueServicePhotos(s?.photos)
 async function pendingServicePhotos(id){const files=[...$('existingPhotos').files],recovered=restoredDraftPhotos.get(sessionUser.id+':'+id)||[];if(!files.length&&!recovered.length)return {};const added=uniqueServicePhotos([...recovered,...await readServicePhotos(files)]);const {data,error}=await sb.from('services').select('photos').eq('id',id).single();if(error)throw error;return {photos:uniqueServicePhotos([...(data.photos||[]),...added])};}
 let photoLoad=Promise.resolve(),photoLoadError=null,photoLoadVersion=0;
 async function readServicePhotos(files){
-  if(files.length>4)throw Error('Selecciona hasta 4 fotos por carga.');
+  if(files.length>12)throw Error('Selecciona hasta 12 fotos por carga. Puedes agregar más en varias tandas.');
   return Promise.all(files.map(file=>new Promise((resolve,reject)=>{
     if(!/^image\/(jpeg|png|webp)$/.test(file.type))return reject(Error('Usa fotos JPG, PNG o WebP. Convierte HEIC antes de adjuntarlas.'));
     const reader=new FileReader();reader.onerror=()=>reject(Error('No se pudo leer '+file.name));
     reader.onload=()=>{const image=new Image();image.onerror=()=>reject(Error('No se pudo abrir '+file.name));image.onload=()=>{
-      const factor=Math.min(1,1600/Math.max(image.width,image.height)),canvas=document.createElement('canvas');
+      const factor=Math.min(1,1400/Math.max(image.width,image.height)),canvas=document.createElement('canvas');
       canvas.width=Math.max(1,Math.round(image.width*factor));canvas.height=Math.max(1,Math.round(image.height*factor));
-      const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.82));
+      const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.76));
     };image.src=reader.result;};reader.readAsDataURL(file);
   })));
 }
 function previewPhotos(e){
-  const version=++photoLoadVersion;currentPhotos=[];photoLoadError=null;$('photoGrid').textContent='Cargando fotografías…';
-  photoLoad=readServicePhotos([...e.target.files]).then(photos=>{if(version!==photoLoadVersion)return;currentPhotos=photos;$('photoGrid').innerHTML=photos.map(src=>'<div class="photo"><img src="'+src+'"></div>').join('');}).catch(error=>{if(version!==photoLoadVersion)return;photoLoadError=error;$('photoGrid').textContent=error.message;});
+  const files=[...e.target.files],base=currentPhotos.slice(),version=++photoLoadVersion;photoLoadError=null;if(!files.length)return;
+  photoLoad=readServicePhotos(files).then(photos=>{if(version!==photoLoadVersion)return;const combined=uniqueServicePhotos([...base,...photos]);if(combined.length>30)throw Error('El informe admite hasta 30 fotos por servicio.');currentPhotos=combined;$('photoGrid').innerHTML=currentPhotos.map((src,i)=>'<div class="photo"><img src="'+esc(src)+'" alt="Foto '+(i+1)+'"></div>').join('');$('photoCount').textContent=currentPhotos.length+' foto(s) listas. Puedes añadir más en otra tanda.';}).catch(error=>{if(version!==photoLoadVersion)return;photoLoadError=error;$('photoGrid').innerHTML=currentPhotos.map((src,i)=>'<div class="photo"><img src="'+esc(src)+'" alt="Foto '+(i+1)+'"></div>').join('');$('photoCount').textContent=error.message;});e.target.value='';
 }
 async function addExistingServicePhotos(){
   if(!canEditTechnical()||serviceWriteBusy)return;
@@ -1541,10 +1541,10 @@ function docBaseCss(extra=""){
   .signatures{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:25px}.sigbox{min-height:28mm;border-top:1px solid #7e887f;padding-top:7px;font-size:9px}.sigbox img{height:18mm;max-width:55mm;object-fit:contain}
   .footer{position:absolute;left:15mm;right:15mm;bottom:8mm;border-top:1px solid #dfe5df;padding-top:5px;display:flex;justify-content:space-between;font-size:8px;color:#5d675f}
   .status-note{padding:9px 10px;border-radius:10px;background:#fff4ce;border:1px solid #e7cf76;font-size:9px;margin-top:10px}
-  .photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.photo-grid img{width:100%;height:48mm;object-fit:cover;border-radius:10px;border:1px solid #e0e5e0}
+  .photo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;align-items:start}.photo-grid img{display:block;width:100%;height:36mm;object-fit:contain;background:#f5f7f5;border-radius:8px;border:1px solid #e0e5e0;break-inside:avoid;page-break-inside:avoid}.section:has(.photo-grid){break-inside:auto}.footer{position:static;margin-top:10mm}
   .totalbox{margin-left:auto;width:68mm;background:#101712;color:#fff;border-radius:14px;padding:11px;margin-top:12px}.totalbox div{display:flex;justify-content:space-between;margin:5px 0;font-size:10px}.totalbox .grand{font-size:16px;color:#a4f748;font-weight:900;border-top:1px solid #314034;padding-top:8px}
   .avoid{break-inside:avoid}
-  @media print{body{background:#fff}.page{margin:0;box-shadow:none}}
+  @media print{body{background:#fff}.page{width:auto;min-height:0;margin:0;box-shadow:none;padding:14mm 15mm 18mm}.footer{position:static}}
   ${extra}`
 }
 function docHeader(title,subtitle=""){
@@ -1604,7 +1604,7 @@ function reportStationHtml(map,stations){
  const pos=v=>Math.max(0,Math.min(100,Number(v)||0));
  const pins=stations.map(s=>`<span style="position:absolute;left:${pos(s.x)}%;top:${pos(s.y)}%;transform:translate(-50%,-50%);background:${baitColor(s.baitStatus)};color:#111;border:1px solid #333;border-radius:4px;font-size:9px;padding:3px">${esc(s.code)}</span>`).join('');
  const rows=[...stations].sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true})).map(s=>`<tr><td><b>${esc(s.code)} – ${esc(baitLabel(s.baitStatus))}</b></td><td>${esc(s.status==='Operativa'?'Normal':s.status)}</td><td>${esc(fmt(s.lastCheck)||'—')}</td><td>${esc(s.notes||'')}</td></tr>`).join('');
-  return `<div class="section"><h2>Estaciones de roedores</h2><p style="font-size:10px">${esc(map?.site||'Mapa de estaciones')} · ${esc(map?.reportLabel||'Estados registrados')}</p>${map?.background?`<div style="position:relative;width:100%;aspect-ratio:16/10;overflow:hidden;break-inside:avoid"><img src="${esc(map.background)}" alt="Mapa de estaciones" style="display:block;width:100%;height:100%;object-fit:cover">${pins}</div>`:''}<table><thead><tr><th>Estación – cebo</th><th>Estado de trampa</th><th>Última revisión</th><th>Observaciones</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Sin estaciones registradas.</td></tr>'}</tbody></table></div>`;
+  return `<div class="section"><h2>Estaciones de roedores</h2><p style="font-size:10px">${esc(map?.site||'Mapa de estaciones')} · ${esc(map?.reportLabel||'Estados registrados')}</p>${map?.background?`<div style="position:relative;width:100%;aspect-ratio:16/10;overflow:hidden;break-inside:avoid"><img src="${esc(map.background)}" alt="Mapa de estaciones" style="display:block;width:100%;height:100%;object-fit:contain;background:#f5f7f5">${pins}</div>`:''}<table><thead><tr><th>Estación – cebo</th><th>Estado de trampa</th><th>Última revisión</th><th>Observaciones</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Sin estaciones registradas.</td></tr>'}</tbody></table></div>`;
 }
 async function loadReportStations(cid){
  const [m,s]=await Promise.all([sb.from('station_maps').select('*').eq('client_id',cid).maybeSingle(),sb.from('stations').select('*').eq('client_id',cid)]);
@@ -1721,7 +1721,7 @@ function printStationMap(){
   const d=state(),cid=isClient()?currentClientId():$("mClient").value;if(!cid)return alert("Selecciona un cliente.");const cl=d.clients.find(x=>x.id===cid)||{},meta=d.stationMaps.find(x=>x.clientId===cid)||{},sts=d.stations.filter(x=>x.clientId===cid);
   const pins=sts.map(s=>`<div class="pin ${s.status==="Revisar"?"a":s.status==="Reemplazar"?"r":""}" style="left:${s.x}%;top:${s.y}%;background:${baitColor(s.baitStatus)}">${esc(s.code)}<span style="position:absolute;top:25px;white-space:nowrap;background:white;padding:2px">${baitLabel(s.baitStatus)}</span></div>`).join("");
   const rows=sts.map(s=>`<tr><td>${esc(s.code)}</td><td>${esc(s.status)}<br>${baitBadge(s.baitStatus)}</td><td>${fmt(s.lastCheck)}</td><td>${esc(s.notes||"")} ${stationHistoryHtml(s,true)}</td></tr>`).join("");
-  const extra=`@page{size:A4 landscape;margin:0}.page{width:297mm;min-height:210mm;padding:10mm 12mm 16mm}.hero img{width:46mm}.mapdoc{position:relative;width:100%;height:100mm;border:1px solid #bfc8bf;border-radius:14px;overflow:hidden;background:${meta.background?`url('${meta.background}') center/cover no-repeat`:"#f4f6f4"}}.pin{position:absolute;transform:translate(-50%,-50%);width:25px;height:25px;border-radius:50%;background:#7bdd00;border:2px solid #111;display:grid;place-items:center;font-size:8px;font-weight:bold}.pin.a{background:#ffd45f}.pin.r{background:#ff806e}.footer{left:12mm;right:12mm}`;
+  const extra=`@page{size:A4 landscape;margin:0}.page{width:297mm;min-height:210mm;padding:10mm 12mm 16mm}.hero img{width:46mm}.mapdoc{position:relative;width:100%;height:100mm;border:1px solid #bfc8bf;border-radius:14px;overflow:hidden;background:${meta.background?`url('${meta.background}') center/contain no-repeat #f4f6f4`:"#f4f6f4"}}.pin{position:absolute;transform:translate(-50%,-50%);width:25px;height:25px;border-radius:50%;background:#7bdd00;border:2px solid #111;display:grid;place-items:center;font-size:8px;font-weight:bold}.pin.a{background:#ffd45f}.pin.r{background:#ff806e}.footer{left:12mm;right:12mm}`;
   const h=`<!doctype html><html><head><meta charset="utf-8"><title>Mapa estaciones ${esc(cl.name||"")}</title><style>${docBaseCss(extra)}</style></head><body><div class="page">
   ${docHeader("MAPA DE ESTACIONES DE CONTROL DE ROEDORES",`${esc(cl.name||"")} · ${esc(meta.site||cl.address||"")}`)}
   <div class="mapdoc">${pins}</div>
@@ -15205,7 +15205,7 @@ const StationQR=(()=>{
  }
  function route(){if(!sessionUser?.id||!canEditTechnical())return;const id=parse(origin+'/'+location.hash);if(!id)return;const key=sessionUser.id+':'+id;if(key===handled||opening)return;handled=key;$('stationQrInput').value=link(id);void open(id);}
  function install(){
-  const host=$('stations');if(!host)return;const panel=document.createElement('div');panel.className='panel';panel.innerHTML='<h3>Identificar estación</h3><p>Escanea la etiqueta con la cámara de tu celular para abrir la estación. También puedes escribir su código o pegar el enlace. Siempre se comprueba tu acceso al cliente.</p><label for="stationQrInput">Código de estación o enlace QR</label><input id="stationQrInput" placeholder="E01 o enlace de la etiqueta" autocomplete="off"><div class="actions"><button class="btn primary" type="button" data-qr-find>Abrir estación</button><button class="btn secondary" type="button" data-qr-print>Imprimir etiquetas QR</button></div><p id="stationQrStatus" class="note" role="status"></p>';host.prepend(panel);
+  const host=$('stations');if(!host)return;const panel=document.createElement('div');panel.className='panel';panel.innerHTML='<h3>Identificar estación</h3><p>Escanea la etiqueta con la cámara de tu celular para abrir la estación. También puedes escribir su código o pegar el enlace. Siempre se comprueba tu acceso al cliente.</p><div class="field"><label for="stationQrInput">Código de estación o enlace QR</label><input id="stationQrInput" placeholder="E01 o enlace de la etiqueta" autocomplete="off"></div><div class="actions"><button class="btn primary" type="button" data-qr-find>Abrir estación</button><button class="btn secondary" type="button" data-qr-print>Imprimir etiquetas QR</button></div><p id="stationQrStatus" class="note" role="status"></p>';host.prepend(panel);
   const photo=document.createElement('label');photo.textContent='Leer QR desde una foto';const input=document.createElement('input');input.type='file';input.accept='image/*';input.setAttribute('capture','environment');input.addEventListener('change',()=>void fromPhoto(input));photo.appendChild(input);panel.appendChild(photo);
   const preview=document.createElement('dialog');preview.id='stationQrPreview';preview.className='panel';preview.style.cssText='width:min(960px,98vw);max-height:95vh;color:var(--text)';preview.innerHTML='<h3>Etiquetas QR de estaciones</h3><button type="button" class="btn secondary" data-qr-close>Cerrar vista previa</button><iframe id="stationQrFrame" title="Etiquetas QR para imprimir" style="width:100%;height:75vh;border:0;background:white;margin-top:12px"></iframe>';document.body.appendChild(preview);
   document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.hasAttribute('data-qr-find'))void fromInput();if(b.hasAttribute('data-qr-print'))void print();if(b.hasAttribute('data-qr-close'))preview.close();});
