@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-17-refresh-todays-report-r41">
+<meta name="rokelux-build" content="2026-11-17-preserve-report-signatures-r42">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -15463,7 +15463,7 @@ printServiceReport=async function(){
   if(isAdmin()&&evidence.source==='archive'){
    const serviceDay=String(evidence.service?.service_date||'').slice(0,10),parts=new Intl.DateTimeFormat('en',{timeZone:'America/Guayaquil',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()),todayParts=parts.reduce((o,p)=>(o[p.type]=p.value,o),{}),today=todayParts.year+'-'+todayParts.month+'-'+todayParts.day;
    const latest=await loadReportStations(evidence.service?.client_id),hasSameDayControl=latest.stations.some(x=>String(x.lastCheck||'').slice(0,10)===serviceDay);
-   if(serviceDay===today||hasSameDayControl){const stamp=new Intl.DateTimeFormat('es-EC',{dateStyle:'medium',timeStyle:'short',timeZone:'America/Guayaquil'}).format(new Date());evidence={...evidence,...latest,source:'current',validationToken:null,notice:'ANEXO DE ESTACIONES ACTUALIZADO EL '+stamp+'. Refleja el mapa y los controles guardados actualmente. La copia firmada anterior se conserva; este anexo actualizado requiere nuevas firmas para sustituirla.',service:{...evidence.service,technician_signature:null,supervisor_signature:null,supervisor_signed_at:null,medical_signature:null,client_signature:null,certificate_signed_at:null}};if(evidence.map)evidence.map.reportLabel='Estado actual consultado el '+stamp; }
+   if(serviceDay===today||hasSameDayControl){const stamp=new Intl.DateTimeFormat('es-EC',{dateStyle:'medium',timeStyle:'short',timeZone:'America/Guayaquil'}).format(new Date());evidence={...evidence,...latest,source:'current',validationToken:null,notice:'ANEXO DE ESTACIONES ACTUALIZADO EL '+stamp+'. Refleja el mapa y los controles guardados actualmente. La copia firmada anterior se conserva en el historial; este informe incluye el anexo actualizado del control.'};if(evidence.map)evidence.map.reportLabel='Estado actual consultado el '+stamp; }
   }
   let html='';renderServiceReportDocument({document:{open(){},write(value){html=value;},close(){}}},evidence);
   if(!html)throw Error('No se pudo preparar el informe.');
