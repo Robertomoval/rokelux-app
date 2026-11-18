@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-17-remove-empty-screen-gap-r35">
+<meta name="rokelux-build" content="2026-11-17-admin-editable-badge-r36">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -498,9 +498,9 @@ input[hidden],div[hidden]{display:none!important}.dashboard-tools{margin-top:18p
     <section id="staffBadge" class="screen">
       <div class="section-title"><h2>Carnet de identificación</h2><span class="muted">Uso interno · ROKELUX</span></div>
       <div class="panel badge-form">
-        <p class="note">Tu nombre y cargo se completan desde tu cuenta. Agrega los datos del carnet y una foto; la foto y los datos de salud solo se usan aquí y no se guardan en la nube.</p>
+        <p class="note">Administración puede editar todos los campos del carnet. Los datos y la foto se usan en este dispositivo y no se guardan en la nube.</p><p id="staffBadgeAdminNote" class="note" hidden>Modo administrador: puedes cambiar nombre, cargo, cédula, caducidad, grupo sanguíneo y foto antes de generar el carnet.</p>
         <div class="cols">
-          <div class="field"><label for="badgeName">Nombres y apellidos</label><input id="badgeName" readonly></div>
+          <div class="field"><label for="badgeName">Nombres y apellidos</label><input id="badgeName"></div>
           <div class="field"><label for="badgeRole">Cargo</label><input id="badgeRole"></div>
         </div>
         <div class="cols">
@@ -793,6 +793,7 @@ function renderStaffBadgePreview(){
  $('staffBadgePreview').innerHTML=front+back;
 }
 function loadStaffBadgePhoto(input){
+ if(!isAdmin())return alert('Solo administración puede modificar el carnet.');
  const file=input?.files?.[0];staffBadgePhotoData='';
  if(!file){$('badgePhotoStatus').textContent='La foto queda en este dispositivo y se inserta al generar el carnet.';renderStaffBadgePreview();return}
  if(!file.type.startsWith('image/')){input.value='';$('badgePhotoStatus').textContent='Selecciona una imagen.';return}
@@ -817,7 +818,11 @@ function generateStaffBadge(){
 }
 function initStaffBadge(){
  if(!(isAdmin()||isTech()))return;
- if($('badgeName').dataset.owner!==sessionUser.id){$('badgeName').value=sessionUser?.name||sessionUser?.full_name||'';$('badgeRole').value=isTech()?'Técnico sanitario':'Administrativo';$('badgeName').dataset.owner=sessionUser.id;}
+ const admin=isAdmin(),name=$('badgeName'),role=$('badgeRole');
+ if(name.dataset.owner!==sessionUser.id){name.value=sessionUser?.name||sessionUser?.full_name||'';role.value=isTech()?'Técnico sanitario':'Administrativo';name.dataset.owner=sessionUser.id;}
+ document.querySelectorAll('#staffBadge .badge-form input, #staffBadge .badge-form select').forEach(field=>{field.disabled=!admin;});
+ const note=$('staffBadgeAdminNote');if(note)note.hidden=!admin;
+ const form=$('#staffBadge .badge-form');if(form&&!form.dataset.previewBound){form.dataset.previewBound='1';form.addEventListener('input',renderStaffBadgePreview);form.addEventListener('change',renderStaffBadgePreview);}
  renderStaffBadgePreview();
 }
 
