@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-17-public-station-verification-r37">
+<meta name="rokelux-build" content="2026-11-17-public-station-verification-r38">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -15219,7 +15219,7 @@ const StationQR=(()=>{
   const uid=sessionUser.id,preview=$('stationQrPreview'),frame=$('stationQrFrame');frame.srcdoc='<p>Preparando etiquetas guardadas en la nube…</p>';preview.showModal();
   try{const r=await sb.from('stations').select('id,code').eq('client_id',cid).order('code');if(r.error)throw r.error;if(sessionUser?.id!==uid)throw Error('La sesión cambió');if(!r.data.length)throw Error('El cliente no tiene estaciones guardadas');frame.srcdoc=labelsHtml(r.data,clientName(cid)).replace('<button onclick="window.close()">Cerrar</button>','');}catch(e){preview.close();alert('No se generaron las etiquetas: '+e.message);}
  }
- function route(){const id=parse(origin+'/'+location.hash);if(!id)return;if(!sessionUser?.id||!canEditTechnical()){location.replace(origin+'/verificar-estacion.html?id='+id);return;}const key=sessionUser.id+':'+id;if(key===handled||opening)return;handled=key;$('stationQrInput').value=link(id);void open(id);}
+ function route(){const id=parse(origin+'/'+location.hash);if(!id)return;location.replace(origin+'/verificar-estacion.html?id='+id);}
  function install(){
   const host=$('stations');if(!host)return;const panel=document.createElement('div');panel.className='panel';panel.innerHTML='<h3>Identificar estación</h3><p>Escanea la etiqueta con la cámara de tu celular para abrir la estación. También puedes escribir su código o pegar el enlace. Siempre se comprueba tu acceso al cliente.</p><div class="field"><label for="stationQrInput">Código de estación o enlace QR</label><input id="stationQrInput" placeholder="E01 o enlace de la etiqueta" autocomplete="off"></div><div class="actions"><button class="btn primary" type="button" data-qr-find>Abrir estación</button><button class="btn secondary" type="button" data-qr-print>Imprimir etiquetas QR</button></div><p id="stationQrStatus" class="note" role="status"></p>';host.prepend(panel);
   const photo=document.createElement('label');photo.textContent='Leer QR desde una foto';const input=document.createElement('input');input.type='file';input.accept='image/*';input.setAttribute('capture','environment');input.addEventListener('change',()=>void fromPhoto(input));photo.appendChild(input);panel.appendChild(photo);
