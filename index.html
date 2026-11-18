@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-17-admin-editable-badge-r36">
+<meta name="rokelux-build" content="2026-11-17-public-station-verification-r37">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -1731,18 +1731,20 @@ function renderStationMap(){
   map.innerHTML=sts.map(s=>`<button class="station-pin ${s.status==="Revisar"?"attention":s.status==="Reemplazar"?"replace":""}" style="left:${s.x}%;top:${s.y}%;background:${baitColor(s.baitStatus)}" onclick="event.stopPropagation();editStation('${s.id}')" title="${esc(s.code)} · ${esc(s.status)} · Cebo: ${baitLabel(s.baitStatus)}" aria-label="${esc(s.code)} · Cebo: ${baitLabel(s.baitStatus)}">${esc(s.code)}<span class="pin-label">${baitLabel(s.baitStatus)}</span></button>`).join("");
   list.innerHTML=sts.length?sts.sort((a,b)=>a.code.localeCompare(b.code)).map(s=>`<div class="item"><div class="avatar">📍</div><div class="meta"><b>${esc(s.code)} · ${esc(s.status)}</b>${baitBadge(s.baitStatus)}<small>Última revisión: ${fmt(s.lastCheck)||"—"}<br>${esc(s.notes||"")}</small>${stationHistoryHtml(s)}</div>${canEditTechnical()?`<button class="btn ghost" onclick="editStation('${s.id}')">Revisar</button>`:""}</div>`).join(""):`<div class="empty">Toca el mapa para agregar la primera estación.</div>`;
 }
-function printStationMap(){
-  const d=state(),cid=isClient()?currentClientId():$("mClient").value;if(!cid)return alert("Selecciona un cliente.");const cl=d.clients.find(x=>x.id===cid)||{},meta=d.stationMaps.find(x=>x.clientId===cid)||{},sts=d.stations.filter(x=>x.clientId===cid);
+async function printStationMap(){
+  const printWindow=window.open("","_blank");if(!printWindow)return alert("Permite ventanas emergentes para imprimir el mapa.");printWindow.document.write("<p>Preparando el mapa para impresión…</p>");
+  const d=state(),cid=isClient()?currentClientId():$("mClient").value;if(!cid){printWindow.close();return alert("Selecciona un cliente.");}const cl=d.clients.find(x=>x.id===cid)||{},meta=d.stationMaps.find(x=>x.clientId===cid)||{},sts=d.stations.filter(x=>x.clientId===cid);
+  let aspect=273/125;if(meta.background){try{aspect=await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image.naturalWidth/image.naturalHeight);image.onerror=()=>reject(Error('map'));image.src=meta.background;});}catch{}}const mapH=Math.min(125,273/aspect),mapW=mapH*aspect;
   const pins=sts.map(s=>`<div class="pin ${s.status==="Revisar"?"a":s.status==="Reemplazar"?"r":""}" style="left:${s.x}%;top:${s.y}%;background:${baitColor(s.baitStatus)}">${esc(s.code)}<span style="position:absolute;top:25px;white-space:nowrap;background:white;padding:2px">${baitLabel(s.baitStatus)}</span></div>`).join("");
   const rows=sts.map(s=>`<tr><td>${esc(s.code)}</td><td>${esc(s.status)}<br>${baitBadge(s.baitStatus)}</td><td>${fmt(s.lastCheck)}</td><td>${esc(s.notes||"")} ${stationHistoryHtml(s,true)}</td></tr>`).join("");
-  const extra=`@page{size:A4 landscape;margin:0}.page{width:297mm;min-height:210mm;padding:10mm 12mm 16mm}.hero img{width:46mm}.mapdoc{position:relative;width:100%;height:100mm;border:1px solid #bfc8bf;border-radius:14px;overflow:hidden;background:${meta.background?`url('${meta.background}') center/contain no-repeat #f4f6f4`:"#f4f6f4"}}.pin{position:absolute;transform:translate(-50%,-50%);width:25px;height:25px;border-radius:50%;background:#7bdd00;border:2px solid #111;display:grid;place-items:center;font-size:8px;font-weight:bold}.pin.a{background:#ffd45f}.pin.r{background:#ff806e}.footer{left:12mm;right:12mm}`;
+  const extra=`@page{size:A4 landscape;margin:0}.page{width:297mm;min-height:210mm;padding:10mm 12mm 16mm}.hero img{width:46mm}.mapdoc{position:relative;width:${mapW}mm;height:${mapH}mm;margin:0 auto 5mm;border:1px solid #bfc8bf;border-radius:14px;overflow:hidden;background:${meta.background?`url('${meta.background}') center/100% 100% no-repeat #f4f6f4`:"#f4f6f4"}}.pin{position:absolute;transform:translate(-50%,-50%);width:25px;height:25px;border-radius:50%;background:#7bdd00;border:2px solid #111;display:grid;place-items:center;font-size:8px;font-weight:bold}.pin.a{background:#ffd45f}.pin.r{background:#ff806e}.footer{left:12mm;right:12mm}`;
   const h=`<!doctype html><html><head><meta charset="utf-8"><title>Mapa estaciones ${esc(cl.name||"")}</title><style>${docBaseCss(extra)}</style></head><body><div class="page">
   ${docHeader("MAPA DE ESTACIONES DE CONTROL DE ROEDORES",`${esc(cl.name||"")} · ${esc(meta.site||cl.address||"")}`)}
   <div class="mapdoc">${pins}</div>
   <div class="section"><h2>Inventario de estaciones</h2><table><tr><th>Estación</th><th>Estado</th><th>Última revisión</th><th>Observaciones</th></tr>${rows||"<tr><td colspan='4'>Sin estaciones registradas</td></tr>"}</table></div>
   <div class="footer"><span>ROKELUX · Control sanitario de roedores</span><span>${esc(cl.name||"")}</span></div>
   </div><script>window.onload=()=>window.print()<\/script></body></html>`;
-  const w=window.open("","_blank");w.document.write(h);w.document.close();
+  printWindow.document.open();printWindow.document.write(h);printWindow.document.close();
 }
 function clientServices(){const d=state();return d.services.filter(s=>s.clientId===currentClientId())}
 function clientQuotes(){const d=state();return d.quotes.filter(q=>q.clientId===currentClientId())}
@@ -15176,7 +15178,7 @@ document.addEventListener('DOMContentLoaded',()=>StationReviews.install());
 const StationQR=(()=>{
  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  const origin='https://rokelux-app.vercel.app';let opening=false,handled='';
- function link(id){if(!uuid.test(id))throw Error('Estación inválida');return origin+'/#station='+id;}
+ function link(id){if(!uuid.test(id))throw Error('Estación inválida');return origin+'/verificar-estacion.html?id='+id;}
  function parse(value){const s=String(value||'').trim();if(uuid.test(s))return s.toLowerCase();try{const u=new URL(s);if(u.origin!==origin||u.pathname!=='/')return null;const match=/^#station=([0-9a-f-]+)$/i.exec(u.hash);return match&&uuid.test(match[1])?match[1].toLowerCase():null;}catch{return null;}}
  function status(text){const e=$('stationQrStatus');if(e)e.textContent=text;}
  async function open(id){
@@ -15209,7 +15211,7 @@ const StationQR=(()=>{
   }catch(e){status(e.message);}finally{if(url)URL.revokeObjectURL(url);input.disabled=false;input.value='';}
  }
  function labelsHtml(rows,client){
-  const labels=rows.map(s=>{const qr=qrcode(0,'M');qr.addData(link(s.id),'Byte');qr.make();return '<article><strong>ROKELUX · '+esc(s.code)+'</strong><div>'+qr.createSvgTag({cellSize:3,margin:12,scalable:true})+'</div><small>'+esc(client)+'</small><p>Escanea con la cámara e inicia sesión.<br>Revisión de estaciones · info@rokeluxec.com</p></article>';}).join('');
+  const labels=rows.map(s=>{const qr=qrcode(0,'M');qr.addData(link(s.id),'Byte');qr.make();return '<article><strong>ROKELUX · '+esc(s.code)+'</strong><div>'+qr.createSvgTag({cellSize:3,margin:12,scalable:true})+'</div><small>'+esc(client)+'</small><p>Escanea para verificar la estación y sus controles.<br>ROKELUX · info@rokeluxec.com</p></article>';}).join('');
   return '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de estaciones ROKELUX</title><style>@page{size:A4;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;color:#111}.toolbar{padding:12px;background:#eff5ea}.labels{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}article{border:1px dashed #555;padding:3mm;text-align:center;break-inside:avoid;height:84mm;overflow:hidden}strong{font-size:14pt}svg{display:block;width:46mm;height:46mm;margin:auto}small{display:block;font-size:8pt;overflow-wrap:anywhere}p{font-size:7pt;margin:2mm 0}button{padding:9px;margin-right:8px}@media print{.toolbar{display:none}}@media screen{.labels{max-width:190mm;margin:15px auto}}</style></head><body><div class="toolbar"><button onclick="window.print()">Imprimir / Guardar PDF</button><button onclick="window.close()">Cerrar</button>Imprime al 100 %. El QR identifica la estación; no acredita presencia física.</div><section class="labels">'+labels+'</section></body></html>';
  }
  async function print(){
@@ -15217,7 +15219,7 @@ const StationQR=(()=>{
   const uid=sessionUser.id,preview=$('stationQrPreview'),frame=$('stationQrFrame');frame.srcdoc='<p>Preparando etiquetas guardadas en la nube…</p>';preview.showModal();
   try{const r=await sb.from('stations').select('id,code').eq('client_id',cid).order('code');if(r.error)throw r.error;if(sessionUser?.id!==uid)throw Error('La sesión cambió');if(!r.data.length)throw Error('El cliente no tiene estaciones guardadas');frame.srcdoc=labelsHtml(r.data,clientName(cid)).replace('<button onclick="window.close()">Cerrar</button>','');}catch(e){preview.close();alert('No se generaron las etiquetas: '+e.message);}
  }
- function route(){if(!sessionUser?.id||!canEditTechnical())return;const id=parse(origin+'/'+location.hash);if(!id)return;const key=sessionUser.id+':'+id;if(key===handled||opening)return;handled=key;$('stationQrInput').value=link(id);void open(id);}
+ function route(){const id=parse(origin+'/'+location.hash);if(!id)return;if(!sessionUser?.id||!canEditTechnical()){location.replace(origin+'/verificar-estacion.html?id='+id);return;}const key=sessionUser.id+':'+id;if(key===handled||opening)return;handled=key;$('stationQrInput').value=link(id);void open(id);}
  function install(){
   const host=$('stations');if(!host)return;const panel=document.createElement('div');panel.className='panel';panel.innerHTML='<h3>Identificar estación</h3><p>Escanea la etiqueta con la cámara de tu celular para abrir la estación. También puedes escribir su código o pegar el enlace. Siempre se comprueba tu acceso al cliente.</p><div class="field"><label for="stationQrInput">Código de estación o enlace QR</label><input id="stationQrInput" placeholder="E01 o enlace de la etiqueta" autocomplete="off"></div><div class="actions"><button class="btn primary" type="button" data-qr-find>Abrir estación</button><button class="btn secondary" type="button" data-qr-print>Imprimir etiquetas QR</button></div><p id="stationQrStatus" class="note" role="status"></p>';host.prepend(panel);
   const photo=document.createElement('label');photo.textContent='Leer QR desde una foto';const input=document.createElement('input');input.type='file';input.accept='image/*';input.setAttribute('capture','environment');input.addEventListener('change',()=>void fromPhoto(input));photo.appendChild(input);panel.appendChild(photo);
