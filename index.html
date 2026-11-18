@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta name="rokelux-build" content="2026-11-17-public-station-verification-r38">
+<meta name="rokelux-build" content="2026-11-17-station-map-number-only-r39">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#080b09">
@@ -1728,14 +1728,14 @@ function renderStationMap(){
   const saved=d.stationMaps.find(x=>x.clientId===cid)||{site:"",background:""},draft=stationMapDrafts.get(cid)||{},meta={...saved,...draft,background:draft.background_url??saved.background};$("mSite").value=meta.site||"";
   if(meta.background){map.classList.add("has-bg");map.style.backgroundImage=`url("${meta.background}")`}else{map.classList.remove("has-bg");map.style.backgroundImage=""}
   const sts=d.stations.filter(x=>x.clientId===cid);
-  map.innerHTML=sts.map(s=>`<button class="station-pin ${s.status==="Revisar"?"attention":s.status==="Reemplazar"?"replace":""}" style="left:${s.x}%;top:${s.y}%;background:${baitColor(s.baitStatus)}" onclick="event.stopPropagation();editStation('${s.id}')" title="${esc(s.code)} · ${esc(s.status)} · Cebo: ${baitLabel(s.baitStatus)}" aria-label="${esc(s.code)} · Cebo: ${baitLabel(s.baitStatus)}">${esc(s.code)}<span class="pin-label">${baitLabel(s.baitStatus)}</span></button>`).join("");
+  map.innerHTML=sts.map(s=>`<button class="station-pin ${s.status==="Revisar"?"attention":s.status==="Reemplazar"?"replace":""}" style="left:${s.x}%;top:${s.y}%;background:${baitColor(s.baitStatus)}" onclick="event.stopPropagation();editStation('${s.id}')" title="${esc(s.code)} · ${esc(s.status)} · Cebo: ${baitLabel(s.baitStatus)}" aria-label="${esc(s.code)} · Cebo: ${baitLabel(s.baitStatus)}">${esc(s.code)}</button>`).join("");
   list.innerHTML=sts.length?sts.sort((a,b)=>a.code.localeCompare(b.code)).map(s=>`<div class="item"><div class="avatar">📍</div><div class="meta"><b>${esc(s.code)} · ${esc(s.status)}</b>${baitBadge(s.baitStatus)}<small>Última revisión: ${fmt(s.lastCheck)||"—"}<br>${esc(s.notes||"")}</small>${stationHistoryHtml(s)}</div>${canEditTechnical()?`<button class="btn ghost" onclick="editStation('${s.id}')">Revisar</button>`:""}</div>`).join(""):`<div class="empty">Toca el mapa para agregar la primera estación.</div>`;
 }
 async function printStationMap(){
   const printWindow=window.open("","_blank");if(!printWindow)return alert("Permite ventanas emergentes para imprimir el mapa.");printWindow.document.write("<p>Preparando el mapa para impresión…</p>");
   const d=state(),cid=isClient()?currentClientId():$("mClient").value;if(!cid){printWindow.close();return alert("Selecciona un cliente.");}const cl=d.clients.find(x=>x.id===cid)||{},meta=d.stationMaps.find(x=>x.clientId===cid)||{},sts=d.stations.filter(x=>x.clientId===cid);
   let aspect=273/125;if(meta.background){try{aspect=await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image.naturalWidth/image.naturalHeight);image.onerror=()=>reject(Error('map'));image.src=meta.background;});}catch{}}const mapH=Math.min(125,273/aspect),mapW=mapH*aspect;
-  const pins=sts.map(s=>`<div class="pin ${s.status==="Revisar"?"a":s.status==="Reemplazar"?"r":""}" style="left:${s.x}%;top:${s.y}%;background:${baitColor(s.baitStatus)}">${esc(s.code)}<span style="position:absolute;top:25px;white-space:nowrap;background:white;padding:2px">${baitLabel(s.baitStatus)}</span></div>`).join("");
+  const pins=sts.map(s=>`<div class="pin ${s.status==="Revisar"?"a":s.status==="Reemplazar"?"r":""}" style="left:${s.x}%;top:${s.y}%;background:${baitColor(s.baitStatus)}">${esc(s.code)}</div>`).join("");
   const rows=sts.map(s=>`<tr><td>${esc(s.code)}</td><td>${esc(s.status)}<br>${baitBadge(s.baitStatus)}</td><td>${fmt(s.lastCheck)}</td><td>${esc(s.notes||"")} ${stationHistoryHtml(s,true)}</td></tr>`).join("");
   const extra=`@page{size:A4 landscape;margin:0}.page{width:297mm;min-height:210mm;padding:10mm 12mm 16mm}.hero img{width:46mm}.mapdoc{position:relative;width:${mapW}mm;height:${mapH}mm;margin:0 auto 5mm;border:1px solid #bfc8bf;border-radius:14px;overflow:hidden;background:${meta.background?`url('${meta.background}') center/100% 100% no-repeat #f4f6f4`:"#f4f6f4"}}.pin{position:absolute;transform:translate(-50%,-50%);width:25px;height:25px;border-radius:50%;background:#7bdd00;border:2px solid #111;display:grid;place-items:center;font-size:8px;font-weight:bold}.pin.a{background:#ffd45f}.pin.r{background:#ff806e}.footer{left:12mm;right:12mm}`;
   const h=`<!doctype html><html><head><meta charset="utf-8"><title>Mapa estaciones ${esc(cl.name||"")}</title><style>${docBaseCss(extra)}</style></head><body><div class="page">
