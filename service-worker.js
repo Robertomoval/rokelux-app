@@ -9,7 +9,7 @@ self.addEventListener('fetch',event=>{
   event.respondWith(fetch(request).then(async response=>{
    if(!response.ok)return response;
    let html=await response.text();
-   if(!html.includes('rename-station.js'))html=html.replace(/<\/body>/i,'<script src="./rename-station.js?v=1"><\/script></body>');
+   if(!html.includes('rename-station.js'))html=html.replace(/<\/body>/i,'<script src="./rename-station.js"><\/script></body>');
    const headers=new Headers(response.headers);headers.delete('content-length');headers.delete('content-encoding');headers.delete('etag');
    const patched=new Response(html,{status:response.status,statusText:response.statusText,headers});
    caches.open(CACHE).then(cache=>cache.put(request,patched.clone()));return patched;
