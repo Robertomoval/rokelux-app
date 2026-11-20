@@ -12,7 +12,7 @@ declare
  payload jsonb:='{}'::jsonb;
  history jsonb:='[]'::jsonb;
  controls jsonb:='[]'::jsonb;
- prefix text:=E'ROKELUX_STATION_V1\n';
+ prefix text:=E'ROKELUX_STATION_V1\\n';
 begin
  if p_station is null then return jsonb_build_object('valid',false); end if;
  select * into s from public.stations where id=p_station;
@@ -23,14 +23,24 @@ begin
   exception when others then payload:='{}'::jsonb; end;
  end if;
  history:=payload->'baitHistory';
- if jsonb_typeof(history)='array' then
-  select coalesce(jsonb_agg(jsonb_build_object(
-   'date',item.value->>'date',
-   'status',item.value->>'status',
-   'bait_status',item.value->>'baitStatus'
-  ) order by item.value->>'date' desc),'[]'::jsonb)
-  into controls from jsonb_array_elements(history) as item(value);
- end if;
+ with source_rows as (
+  select r.id::text as control_key,r.reviewed_at as occurred_at,r.status,r.bait_status,0 as priority
+  from public.rokelux_station_reviews r where r.station_id=s.id
+  union all
+  select coalesce(nullif(item.value->>'reviewId',''),'legacy:'||(item.value->>'date')||'|'||(item.value->>'status')||'|'||(item.value->>'baitStatus')),
+   (item.value->>'date')::timestamptz,item.value->>'status',item.value->>'baitStatus',1
+  from jsonb_array_elements(case when jsonb_typeof(history)='array' then history else '[]'::jsonb end) as item(value)
+  where coalesce(item.value->>'date','') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+ ), dedup as (
+  select distinct on (control_key) control_key,occurred_at,status,bait_status
+  from source_rows order by control_key,priority,occurred_at desc
+ )
+ select coalesce(jsonb_agg(jsonb_build_object(
+  'date',occurred_at,
+  'status',status,
+  'bait_status',bait_status
+ ) order by occurred_at desc),'[]'::jsonb)
+ into controls from dedup;
  if jsonb_array_length(controls)=0 and s.last_check is not null then
   controls:=jsonb_build_array(jsonb_build_object('date',s.last_check,'status',s.status,'bait_status',payload->>'baitStatus'));
  end if;
