@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#080b09">
 <title>Verificación de estación · ROKELUX</title>
 <style>
-:root{color-scheme:dark;--bg:#080b09;--panel:#111713;--line:#2b3a2c;--green:#8cff00;--text:#f4f6f4;--muted:#bac5bc}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh;padding:24px;display:grid;place-items:center}.card{width:min(680px,100%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(20px,5vw,36px)}.brand{color:var(--green);font-size:22px;font-weight:900;letter-spacing:.12em}h1{font-size:clamp(23px,5vw,32px);margin:8px 0 4px}p{line-height:1.55;color:var(--muted)}.status{margin:22px 0 16px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#0c120e}.valid{border-color:#72c835}.invalid{border-color:#c84b4b}.code{font-size:24px;font-weight:800;color:var(--green)}dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0}dl div{border:1px solid var(--line);padding:14px;border-radius:10px}dt{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}dd{margin:6px 0 0;font-weight:700}h2{font-size:18px;margin:24px 0 10px}.controls{list-style:none;padding:0;margin:0}.controls li{border-top:1px solid var(--line);padding:14px 0;display:flex;justify-content:space-between;gap:12px}.controls small{color:var(--muted);display:block;margin-top:4px}.footer{border-top:1px solid var(--line);margin-top:24px;padding-top:16px;font-size:12px;color:var(--muted)}[hidden]{display:none!important}@media(max-width:480px){body{padding:12px}dl{grid-template-columns:1fr}.controls li{display:block}}
+:root{color-scheme:dark;--bg:#080b09;--panel:#111713;--line:#2b3a2c;--green:#8cff00;--text:#f4f6f4;--muted:#bac5bc}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh;padding:24px;display:grid;place-items:center}.card{width:min(680px,100%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(20px,5vw,36px)}.brand{color:var(--green);font-size:22px;font-weight:900;letter-spacing:.12em}h1{font-size:clamp(23px,5vw,32px);margin:8px 0 4px}p{line-height:1.55;color:var(--muted)}.status{margin:22px 0 16px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#0c120e}.valid{border-color:#72c835}.invalid{border-color:#c84b4b}.code{font-size:24px;font-weight:800;color:var(--green)}dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0}dl div{border:1px solid var(--line);padding:14px;border-radius:10px}dt{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}dd{margin:6px 0 0;font-weight:700}h2{font-size:18px;margin:24px 0 10px}.controls{list-style:none;padding:0;margin:0}.controls li{border-top:1px solid var(--line);padding:14px 0;display:flex;justify-content:space-between;gap:12px}.controls small{color:var(--muted);display:block;margin-top:4px}.history-toggle{margin:12px 0 0;border:1px solid #72c835;background:#101810;color:var(--green);border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer}.footer{border-top:1px solid var(--line);margin-top:24px;padding-top:16px;font-size:12px;color:var(--muted)}[hidden]{display:none!important}@media(max-width:480px){body{padding:12px}dl{grid-template-columns:1fr}.controls li{display:block}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -19,8 +19,9 @@
  <section id="details" hidden>
   <div id="stationCode" class="code"></div>
   <dl><div><dt>Estado actual</dt><dd id="stationStatus"></dd></div><div><dt>Último control</dt><dd id="lastCheck"></dd></div></dl>
-  <h2>Registro de controles</h2>
+  <h2>Controles más recientes</h2>
   <ul id="controls" class="controls"></ul>
+  <button id="historyToggle" class="history-toggle" type="button" hidden>Ver historial completo</button>
  </section>
  <div class="footer">La información se consulta directamente del registro ROKELUX. El código QR identifica la estación; no demuestra por sí solo la presencia física del técnico.</div>
 </main>
@@ -38,9 +39,10 @@ async function verifyStation(){
   document.getElementById('stationCode').textContent='Estación · '+(data.station_code||'—');
   document.getElementById('stationStatus').textContent=data.status||'Sin estado';
   document.getElementById('lastCheck').textContent=dateLabel(data.last_check);
-  const list=document.getElementById('controls'),items=Array.isArray(data.controls)?data.controls:[];
-  if(!items.length){const li=document.createElement('li');li.textContent='Aún no hay controles registrados para esta estación.';list.append(li);}
-  items.forEach(item=>{const li=document.createElement('li'),copy=document.createElement('div'),when=document.createElement('strong'),sub=document.createElement('small');when.textContent=dateLabel(item.date);sub.textContent=(item.status||'Estado no indicado')+(item.bait_status?' · Cebo: '+item.bait_status:'');copy.append(when,sub);li.append(copy);list.append(li);});
+  const list=document.getElementById('controls'),items=Array.isArray(data.controls)?data.controls:[],toggle=document.getElementById('historyToggle');
+  let showAll=false;
+  function renderControls(){list.replaceChildren();const visible=showAll?items:items.slice(0,3);if(!items.length){const li=document.createElement('li');li.textContent='Aún no hay controles registrados para esta estación.';list.append(li);}visible.forEach(item=>{const li=document.createElement('li'),copy=document.createElement('div'),when=document.createElement('strong'),sub=document.createElement('small');when.textContent=dateLabel(item.date);sub.textContent=(item.status||'Estado no indicado')+(item.bait_status?' · Cebo: '+item.bait_status:'');copy.append(when,sub);li.append(copy);list.append(li);});toggle.hidden=items.length<=3;toggle.textContent=showAll?'Mostrar solo los 3 más recientes':'Ver historial completo ('+items.length+')';}
+  toggle.onclick=()=>{showAll=!showAll;renderControls();};renderControls();
   document.getElementById('details').hidden=false;
  }catch(error){result.className='status invalid';result.textContent='No se pudo verificar ahora. Comprueba tu conexión e inténtalo nuevamente.';console.error(error);}
 }
@@ -48,3 +50,4 @@ verifyStation();
 </script>
 </body>
 </html>
+
