@@ -257,14 +257,14 @@ input[hidden],div[hidden]{display:none!important}.dashboard-tools{margin-top:18p
       </div>
       <div class="panel">
         <p id="savedServicePhotoStatus" role="status"></p><div id="savedServicePhotos" class="photos"></div><details><summary>Agregar evidencia adicional al mismo servicio (opcional)</summary><div class="field"><label for="existingPhotos">Fotos adicionales del técnico (JPG, PNG o WebP)</label><input id="existingPhotos" type="file" accept="image/jpeg,image/png,image/webp" multiple></div><button class="btn ghost" onclick="addExistingServicePhotos()">Guardar fotos adicionales</button></details>
-        <p class="note">Al guardar, las firmas quedan asociadas a este servicio y aparecerán automáticamente en el certificado. El técnico puede recoger ambas firmas desde el mismo celular o tablet.</p>
+        <p class="note">Primero captura las firmas del técnico y de quien recibe el servicio; pulsa Guardar firmas para enviar el certificado. Después, el responsable de ROKELUX guarda su firma para enviar el informe técnico.</p>
         <div class="actions">
           <button class="btn primary" onclick="saveCertificateSignatures()">Guardar firmas</button>
           <button class="btn secondary" onclick="printSelectedSignedCertificate()">Ver certificado / PDF</button>
         </div>
         <div class="signature-grid" style="margin-top:16px">
         <div class="signature-box">
-          <h3>Responsable de ROKELUX</h3>
+          <h3>Responsable de ROKELUX · firma posterior para el informe</h3>
           <div class="field"><label for="sigSupervisorRole">Cargo</label><input id="sigSupervisorRole" maxlength="100" placeholder="Ej. Supervisor técnico"></div>
           <div class="field"><label for="sigSupervisorName">Nombre</label><input id="sigSupervisorName" maxlength="150" placeholder="Nombre completo"></div>
           <div class="field"><label for="sigSupervisorDate">Fecha</label><input id="sigSupervisorDate" type="date"></div>
@@ -284,7 +284,7 @@ input[hidden],div[hidden]{display:none!important}.dashboard-tools{margin-top:18p
           <button class="btn primary" onclick="saveMedicalSignature()">Guardar firma del médico</button>
         </div>
         </div>
-          <div class="card" style="margin-top:16px"><h3>Envío de documentos al cliente</h3><p>Remitente: info@rokeluxec.com. El certificado se envía después de las firmas del técnico y del cliente. El informe también requiere la firma del supervisor.</p><div id="documentMailStatus" role="status" aria-live="polite"></div><button class="btn ghost" onclick="refreshDocumentMail()">Consultar estado</button><button class="btn ghost admin-only" onclick="retryDocumentMail()">Reintentar después de corregir</button></div>
+          <div class="card" style="margin-top:16px"><h3>Envío de documentos al cliente</h3><p>Remitente: info@rokeluxec.com. Primero se envía el certificado al guardar las firmas del técnico y del cliente; después, al guardar la firma del responsable de ROKELUX, se envía el informe técnico.</p><div id="documentMailStatus" role="status" aria-live="polite"></div><button class="btn ghost" onclick="refreshDocumentMail()">Consultar estado</button><button class="btn ghost admin-only" onclick="retryDocumentMail()">Reintentar después de corregir</button></div>
           <button class="btn secondary" onclick="$('srService').value=$('sigService').value;printServiceReport()">Ver informe técnico</button>
         </div>
       </div>
@@ -1178,22 +1178,20 @@ async function saveCertificateSignatures(){
   if(signatureLoadedId!==id)return alert('Primero carga las firmas guardadas del servicio.');
   const tn=$('sigTechName').value.trim(),cn=$('sigClientName').value.trim(),techPad=$('sigTechCanvas'),clientPad=$('sigClientCanvas');
   if(!tn||!techPad.dataset.signed)return alert('Completa el nombre del técnico y captura su firma.');
-  const supervisorReady=!!(service.supervisorSignature||$('sigSupervisorCanvas').dataset.signed),medicalReady=!!(service.medicalSignature||$('sigMedicalCanvas').dataset.signed),clientReady=!!(service.clientSignature||clientPad.dataset.signed);
-  if(!clientReady&&!supervisorReady&&!medicalReady)return alert('Para generar el certificado se necesita la firma del técnico y al menos una firma adicional: responsable de ROKELUX, médico o recibido por.');
+  const clientReady=!!(service.clientSignature||clientPad.dataset.signed);
+  if(!clientReady)return alert('Para enviar el certificado, primero captura la firma del técnico y de quien recibe el servicio.');
   if(clientPad.dataset.signed&&!cn)return alert('Completa el nombre de quien recibe.');
   if(!navigator.onLine)return alert('Necesitas conexión para guardar las firmas. Conserva esta pantalla abierta.');
   const patch={technician_name:tn,technician_signature:techPad.toDataURL('image/png'),certificate_signed_at:new Date().toISOString()};
   if(clientPad.dataset.signed){patch.received_by=cn;patch.received_by_role=$('sigClientRole').value.trim();patch.client_signature=clientPad.toDataURL('image/png');}
-  if($('sigSupervisorCanvas').dataset.signed){const name=$('sigSupervisorName').value.trim(),role=$('sigSupervisorRole').value.trim(),date=$('sigSupervisorDate').value;if(!name||!role||!date)return alert('Completa cargo, nombre y fecha del responsable de ROKELUX.');Object.assign(patch,{supervisor_name:name,supervisor_role:role,supervisor_signature:$('sigSupervisorCanvas').toDataURL('image/png'),supervisor_signed_at:new Date(date+'T12:00:00').toISOString()});}
-  if($('sigMedicalCanvas').dataset.signed){const name=$('sigMedicalName').value.trim(),role=$('sigMedicalRole').value.trim(),date=$('sigMedicalDate').value;if(!name||!role||!date)return alert('Completa cargo, nombre y fecha del médico.');Object.assign(patch,{medical_name:name,medical_role:role,medical_signature:$('sigMedicalCanvas').toDataURL('image/png'),medical_signed_at:new Date(date+'T12:00:00').toISOString()});}
   serviceWriteBusy=true;
   try{
     Object.assign(patch,await pendingServicePhotos(id));
     const {data,error}=await sb.from('services').update(patch).eq('id',id).select('*').single();
     if(error)throw error;
     cacheConfirmedService(data);if($('sigService').value===id){$('existingPhotos').value='';renderSavedServicePhotos(serviceFromDb(data));}
-    alert('Las firmas quedaron confirmadas en la nube. El certificado requiere al técnico y al menos otro firmante. El envío por correo se activa cuando está firmado quien recibe.');
-    if(patch.client_signature)void processDocumentMail(id);
+    alert('Firmas del técnico y del cliente guardadas. Se está enviando el certificado; luego puedes guardar la firma del responsable de ROKELUX para enviar el informe.');
+    void processDocumentMail(id);
   }catch(e){alert('No se pudieron confirmar las firmas: '+e.message+'. No cierres esta pantalla hasta guardarlas.');}
   finally{serviceWriteBusy=false;}
 }
@@ -1203,13 +1201,15 @@ async function saveSupervisorSignature(){
   const id=$('sigService').value,name=$('sigSupervisorName').value.trim();
   if(signatureLoadedId!==id)return alert('Primero carga las firmas guardadas del servicio.');
   if(!id||!name||!$('sigSupervisorCanvas').dataset.signed)return alert('Selecciona el servicio, completa el nombre y solicita la firma del supervisor.');
+  const signedService=state().services.find(x=>x.id===id);
+  if(!signedService?.technicianSignature||!signedService?.clientSignature)return alert('Primero guarda las firmas del técnico y del cliente. El informe se enviará después de guardar la firma del responsable de ROKELUX.');
   serviceWriteBusy=true;
   try{
     const role=$('sigSupervisorRole').value.trim(),date=$('sigSupervisorDate').value;if(!role||!date)return alert('Completa el cargo y la fecha del responsable de ROKELUX.');
     const patch={supervisor_name:name,supervisor_role:role,supervisor_signature:$('sigSupervisorCanvas').toDataURL('image/png'),supervisor_signed_at:new Date(date+'T12:00:00').toISOString(),...await pendingServicePhotos(id)};
     const {data,error}=await sb.from('services').update(patch).eq('id',id).select('*').single();if(error)throw error;
-    cacheConfirmedService(data);if($('sigService').value===id){$('existingPhotos').value='';renderSavedServicePhotos(serviceFromDb(data));}alert('Datos y firma del responsable de ROKELUX guardados.');
-    if(data.technician_signature&&data.client_signature)void processDocumentMail(id);
+    cacheConfirmedService(data);if($('sigService').value===id){$('existingPhotos').value='';renderSavedServicePhotos(serviceFromDb(data));}alert('Firma del responsable de ROKELUX guardada. Se está enviando el informe técnico al cliente.');
+    void processDocumentMail(id);
   }catch(e){alert('No se pudo guardar la firma del supervisor: '+e.message);}
   finally{serviceWriteBusy=false;}
 }
@@ -1254,7 +1254,7 @@ function certificatePestsMarkup(values,artwork){
 
 async function printCertificate(id){
   let validationQr='';try{const v=await sb.rpc('rokelux_document_validation_token',{p_service:id,p_kind:'certificado'});if(!v.error&&v.data){const qr=qrcode(0,'M');qr.addData('https://rokelux-app.vercel.app/verificar.html?token='+encodeURIComponent(v.data),'Byte');qr.make();validationQr=qr.createDataURL(3,5);}}catch{}
-  const d=state(),s=d.services.find(x=>x.id===id);if(!s||(isClient()&&s.clientId!==currentClientId()))return alert('Servicio no disponible para este usuario.');if(!(s.technicianSignature&&(s.clientSignature||s.supervisorSignature||s.medicalSignature)))return alert('Para generar el certificado se necesita la firma del técnico y al menos una firma adicional de responsable de ROKELUX, médico o recibido por.');const cst=d.clients.find(x=>x.id===s.clientId)||{};
+  const d=state(),s=d.services.find(x=>x.id===id);if(!s||(isClient()&&s.clientId!==currentClientId()))return alert('Servicio no disponible para este usuario.');if(!(s.technicianSignature&&s.clientSignature))return alert('El certificado requiere las firmas guardadas del técnico y del cliente.');const cst=d.clients.find(x=>x.id===s.clientId)||{};
   const certNo="RX-"+s.id.slice(0,8).toUpperCase();
 
   // Coordenadas calibradas directamente sobre la plantilla 1086 × 1448 px.
