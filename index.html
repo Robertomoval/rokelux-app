@@ -1735,7 +1735,17 @@ function renderStationMap(){
   if(meta.background){map.classList.add("has-bg");map.style.backgroundImage=`url("${meta.background}")`}else{map.classList.remove("has-bg");map.style.backgroundImage=""}
   const sts=d.stations.filter(x=>x.clientId===cid),tools=$('stationPositionTools'),moveSelect=$('stationPositionSelect');if(tools){tools.hidden=!isAdmin();if(moveSelect){const selected=moveSelect.value;moveSelect.innerHTML='<option value="">Selecciona estación…</option>'+sts.slice().sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true})).map(s=>'<option value="'+esc(s.id)+'">'+esc(s.code)+'</option>').join('');if(sts.some(s=>s.id===selected))moveSelect.value=selected;}}
   map.innerHTML=sts.map(s=>`<button class="station-pin ${s.status==="Revisar"?"attention":s.status==="Reemplazar"?"replace":""}" style="left:${s.x}%;top:${s.y}%;background:${baitColor(s.baitStatus)}" onclick="event.stopPropagation();editStation('${s.id}')" title="${esc(s.code)} · ${esc(s.status)} · Cebo: ${baitLabel(s.baitStatus)}" aria-label="${esc(s.code)} · Cebo: ${baitLabel(s.baitStatus)}">${esc(s.code)}</button>`).join("");
-  list.innerHTML=sts.length?sts.sort((a,b)=>a.code.localeCompare(b.code)).map(s=>`<div class="item"><div class="avatar">📍</div><div class="meta"><b>${esc(s.code)} · ${esc(s.status)}</b>${baitBadge(s.baitStatus)}<small>Última revisión: ${fmt(s.lastCheck)||"—"}<br>${esc(s.notes||"")}</small>${stationHistoryHtml(s)}</div>${canEditTechnical()?`<button class="btn ghost" onclick="editStation('${s.id}')">Revisar</button>`:""}</div>`).join(""):`<div class="empty">Toca el mapa para agregar la primera estación.</div>`;
+  list.innerHTML=sts.length?sts.sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true})).map(s=>`<div class="item"><div class="avatar">📍</div><div class="meta"><b>${esc(s.code)} · ${esc(s.status)}</b>${baitBadge(s.baitStatus)}<small>Última revisión: ${fmt(s.lastCheck)||"—"}<br>${esc(s.notes||"")}</small>${stationHistoryHtml(s)}</div>${canEditTechnical()?`<button class="btn ghost" onclick="editStation('${s.id}')">Revisar</button>`:""}${isAdmin()?`<button class="btn ghost" onclick="renameStation('${s.id}')">Renombrar</button>`:""}</div>`).join(""):`<div class="empty">Toca el mapa para agregar la primera estación.</div>`;
+}
+async function renameStation(id){
+ if(!isAdmin())return alert('Solo el usuario administrador puede renombrar estaciones.');
+ const station=state().stations.find(s=>s.id===id);if(!station)return alert('No se encontró la estación.');
+ const code=prompt('Nuevo código de estación:',station.code);if(code===null)return;const next=code.trim();if(!next)return alert('Escribe un código para la estación.');if(next.length>40)return alert('El código no puede superar 40 caracteres.');
+ if(state().stations.some(s=>s.clientId===station.clientId&&s.id!==id&&s.code.toLowerCase()===next.toLowerCase()))return alert('Ya existe otra estación con ese código para este cliente.');
+ if(!navigator.onLine)return alert('Conéctate a internet para guardar el nuevo código de forma segura.');
+ const buttons=$('stationList').querySelectorAll('button');buttons.forEach(b=>b.disabled=true);
+ try{const {data,error}=await sb.from('stations').update({code:next}).eq('id',id).select('*').single();if(error)throw error;cacheStation(data);stationMapMessage(station.clientId,'Código actualizado a '+next+'. La ubicación y el historial se conservaron.');}
+ catch(e){alert('No se pudo renombrar la estación: '+e.message);}finally{buttons.forEach(b=>b.disabled=false);}
 }
 async function printStationMap(){
   const printWindow=window.open("","_blank");if(!printWindow)return alert("Permite ventanas emergentes para imprimir el mapa.");printWindow.document.write("<p>Preparando el mapa para impresión…</p>");
