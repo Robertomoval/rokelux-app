@@ -284,7 +284,7 @@ input[hidden],div[hidden]{display:none!important}.dashboard-tools{margin-top:18p
           <button class="btn primary" onclick="saveMedicalSignature()">Guardar firma del médico</button>
         </div>
         </div>
-          <div class="card" style="margin-top:16px"><h3>Envío de documentos al cliente</h3><p>Remitente: info@rokeluxec.com. Primero se envía el certificado al guardar las firmas del técnico y del cliente; después, al guardar la firma del responsable de ROKELUX, se envía el informe técnico.</p><div id="documentMailStatus" role="status" aria-live="polite"></div><button class="btn ghost" onclick="refreshDocumentMail()">Consultar estado</button><button class="btn ghost admin-only" onclick="retryDocumentMail()">Reintentar después de corregir</button></div>
+          <div class="card" style="margin-top:16px"><h3>Envío de documentos al cliente</h3><p>Remitente: info@rokeluxec.com. Primero se envía el certificado al guardar las firmas del técnico y del cliente; después, al guardar la firma del responsable de ROKELUX, se envía el informe técnico.</p><div id="documentMailStatus" role="status" aria-live="polite"></div><button class="btn ghost" id="refreshDocumentMailBtn" onclick="refreshDocumentMail()">Consultar estado</button><button class="btn ghost admin-only" onclick="retryDocumentMail()">Reintentar después de corregir</button></div>
           <button class="btn secondary" onclick="$('srService').value=$('sigService').value;printServiceReport()">Ver informe técnico</button>
         </div>
       </div>
@@ -1220,11 +1220,21 @@ async function saveMedicalSignature(){
 }
 // Delivery status is read from the server. Signatures remain saved if mail fails.
 async function refreshDocumentMail(id=$('sigService')?.value){
- const el=$('documentMailStatus');if(!el)return;if(!id){el.textContent='Selecciona un servicio para consultar sus envíos.';return;}
- const {data,error}=await sb.rpc('rokelux_document_status',{p_service:id});
- if(error){el.textContent='El seguimiento de correo todavía no está disponible. Las firmas guardadas se conservan.';return;}
- const labels={pending:'En cola',processing:'Preparando envío',accepted:'Aceptado por el servicio de correo',blocked:'Requiere corrección',review:'Requiere revisión en Resend'};
- el.innerHTML=data?.length?data.map(r=>`<div><b>${r.kind==='certificado'?'Certificado':'Informe técnico'}:</b> ${esc(labels[r.status]||r.status)}${r.recipient?' · '+esc(r.recipient):' · Falta correo del cliente'}${r.last_error?'<br><small>'+esc(r.last_error)+'</small>':''}</div>`).join(''):'No hay envíos registrados. Los documentos nuevos se enviarán al completar sus firmas. Los servicios firmados antes de activar esta función no se envían automáticamente.';
+ const el=$('documentMailStatus'),btn=$('refreshDocumentMailBtn');if(!el)return;
+ if(!id){el.textContent='Selecciona un servicio para consultar sus envíos.';return;}
+ const priorText=btn?.textContent;
+ if(btn){btn.disabled=true;btn.textContent='Consultando…';}
+ el.textContent='Consultando el estado del correo…';
+ try{
+  const {data,error}=await sb.rpc('rokelux_document_status',{p_service:id});
+  if(error)throw error;
+  const labels={pending:'En cola',processing:'Preparando envío',accepted:'Aceptado por el servicio de correo',blocked:'Requiere corrección',review:'Requiere revisión en Resend'};
+  el.innerHTML=data?.length?data.map(r=>`<div><b>${r.kind==='certificado'?'Certificado':'Informe técnico'}:</b> ${esc(labels[r.status]||r.status)}${r.recipient?' · '+esc(r.recipient):' · Falta correo del cliente'}${r.last_error?'<br><small>'+esc(r.last_error)+'</small>':''}</div>`).join(''):'No hay envíos registrados. Los documentos nuevos se enviarán al completar sus firmas. Los servicios firmados antes de activar esta función no se envían automáticamente.';
+ }catch(err){
+  el.textContent='No se pudo consultar el estado. '+(err?.message||'Verifica tu conexión e inténtalo de nuevo.');
+ }finally{
+  if(btn){btn.disabled=false;btn.textContent=priorText||'Consultar estado';}
+ }
 }
 async function processDocumentMail(id){
  const el=$('documentMailStatus');if(el)el.textContent='Consultando el envío de documentos…';
