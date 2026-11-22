@@ -2009,7 +2009,33 @@ function printClientReport(){
   </div><script>window.onload=()=>window.print()<\/script></body></html>`;
   const w=window.open("","_blank");w.document.write(report);w.document.close();
 }
-function renderAll(){renderStaffBadgeAccess();if(typeof Dispatch!=="undefined")Dispatch.render();renderHome();renderClients();renderSelects();renderHistory();renderCerts();renderCalendar();renderReportSelect();renderReport();renderBusinessSelects();renderQuotes();renderInvoices();renderServiceReports();renderStationMap();renderClientPortal();renderClientDocs();renderClientQuotes();renderClientInvoices();renderUsers();renderSignatureServiceSelect();if($('badgeName')&&$('staffBadgePreview'))initStaffBadge()}
+function renderAll(){
+ renderStaffBadgeAccess();
+ const active=document.querySelector('.screen.active')?.id||'home';
+ switch(active){
+  case 'home': renderHome(); break;
+  case 'clients': renderClients(); break;
+  case 'inspection': renderSelects(); break;
+  case 'ordersHome': if(typeof Dispatch!=="undefined")Dispatch.render(); break;
+  case 'service': renderSelects(); renderActivityRows(); break;
+  case 'history': renderHistory(); break;
+  case 'certificates': renderCerts(); break;
+  case 'certificateSign': renderSignatureServiceSelect(); break;
+  case 'calendar': renderCalendar(); break;
+  case 'reports': renderReportSelect(); renderReport(); break;
+  case 'quotes': renderBusinessSelects(); renderQuotes(); break;
+  case 'billing': renderBusinessSelects(); break;
+  case 'billingLegacy': renderBusinessSelects(); renderInvoices(); break;
+  case 'serviceReports': renderServiceReports(); break;
+  case 'stations': renderBusinessSelects(); renderStationMap(); break;
+  case 'clientPortal': renderClientPortal(); break;
+  case 'clientDocs': renderClientDocs(); break;
+  case 'clientQuotes': renderClientQuotes(); break;
+  case 'clientInvoices': renderClientInvoices(); break;
+  case 'usersAdmin': renderBusinessSelects(); renderUsers(); break;
+  case 'staffBadge': if($('badgeName')&&$('staffBadgePreview'))initStaffBadge(); break;
+ }
+}
 document.addEventListener("DOMContentLoaded",async()=>{
  initializeLetter();
   await initializeAppCache();
