@@ -712,7 +712,12 @@ async function qTable(table,from=0,limit=25){
  let query=sb.from(table).select('*');
  if(table==='services')query=query.order('service_date',{ascending:false,nullsFirst:false}).order('id',{ascending:false}).range(from,from+limit-1);
  const {data,error}=await query;
- if(error){console.warn(table,error.message);if(error.status===401||error.status===403)return [];throw Error('No se pudo actualizar '+table+': '+error.message)}
+ if(error){
+  console.warn(table,error.message);
+  if(table==='services'&&from===0){const cached=state().services;return cached.map(serviceToDb);}
+  if(error.status===401||error.status===403)return [];
+  throw Error('No se pudo actualizar '+table+': '+error.message);
+ }
  return data||[];
 }
 let serviceBackfillGeneration=0;
@@ -743,7 +748,7 @@ async function loadCloudState(){
     inspections:inspections.map(inspectionFromDb),services:services.map(serviceFromDb),quotes:quoteMergeBackup(quotes.map(quoteFromDb)),invoices:invoices.map(invoiceFromDb),stations:stations.map(stationFromDb),stationMaps:maps.map(mapFromDb),requests:requests.map(requestFromDb),
     users:profiles.map(p=>({id:p.user_id,name:p.full_name||"Usuario",username:p.email||"",role:p.role,clientId:p.client_id||null,active:p.active!==false}))
   };
-  if(sessionUser?.id!==loadingUser)return;writeAppData(JSON.stringify(d));cloudReady=true;renderAll();if(services.length===8)void loadOlderServices(loadingUser,services.length,serviceGeneration);return d;
+  if(sessionUser?.id!==loadingUser)return;writeAppData(JSON.stringify(d));cloudReady=true;renderAll();void loadOlderServices(loadingUser,services.length,serviceGeneration);return d;
 }
 async function syncCollection(table,rows,canDelete=false){
   const {error:upErr}=rows.length?await sb.from(table).upsert(rows,{onConflict:'id'}):{error:null};if(upErr){console.warn('sync',table,upErr.message);return}
