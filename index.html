@@ -1294,8 +1294,11 @@ function certificatePestsMarkup(values,artwork){
 }
 
 async function printCertificate(id){
+  const popup=window.open('','_blank');
+  if(!popup)return alert('Permite ventanas emergentes para abrir el certificado.');
+  popup.document.body.textContent='Cargando certificado…';
   let validationQr='';try{const v=await sb.rpc('rokelux_document_validation_token',{p_service:id,p_kind:'certificado'});if(!v.error&&v.data){const qr=qrcode(0,'M');qr.addData('https://rokelux-app.vercel.app/verificar.html?token='+encodeURIComponent(v.data),'Byte');qr.make();validationQr=qr.createDataURL(3,5);}}catch{}
-  const d=state(),s=d.services.find(x=>x.id===id);if(!s||(isClient()&&s.clientId!==currentClientId()))return alert('Servicio no disponible para este usuario.');if(!(s.technicianSignature&&s.clientSignature))return alert('El certificado requiere las firmas guardadas del técnico y del cliente.');const cst=d.clients.find(x=>x.id===s.clientId)||{};
+  const d=state();let s=d.services.find(x=>x.id===id);try{const fresh=await sb.from('services').select('id,client_id,service_date,service_type,areas,pests,products,other_product,notes,technician_name,technician_signature,received_by,received_by_role,client_signature,certificate_signed_at,supervisor_name,supervisor_role,supervisor_signature,supervisor_signed_at,medical_name,medical_role,medical_signature,medical_signed_at').eq('id',id).single();if(!fresh.error)s=serviceFromDb(fresh.data);else if(!s)throw fresh.error;}catch(error){if(!s){popup.close();return alert('No se pudo cargar este certificado desde la nube: '+(error.message||error));}}if(!s||(isClient()&&s.clientId!==currentClientId())){popup.close();return alert('Servicio no disponible para este usuario.');}if(!(s.technicianSignature&&s.clientSignature)){popup.close();return alert('El certificado requiere las firmas guardadas del técnico y del cliente.');}const cst=d.clients.find(x=>x.id===s.clientId)||{};
   const certNo="RX-"+s.id.slice(0,8).toUpperCase();
 
   // Coordenadas calibradas directamente sobre la plantilla 1086 × 1448 px.
@@ -1381,8 +1384,7 @@ async function printCertificate(id){
   <script>window.onload=()=>{document.querySelectorAll('.v:not(.obs)').forEach(e=>{let size=parseFloat(getComputedStyle(e).fontSize);while(e.scrollWidth>e.clientWidth&&size>6){size-=.25;e.style.fontSize=size+'px';}});setTimeout(()=>window.print(),350)}<\/script>
   </body></html>`;
 
-  const w=window.open("","_blank");
-  w.document.open();w.document.write(html);w.document.close();
+  popup.document.open();popup.document.write(html);popup.document.close();
 }
 function renderHome(){const d=state();$("stClients").textContent=d.clients.length;$("stServices").textContent=d.services.length;$("stPending").textContent=d.inspections.length;$("stCerts").textContent=d.services.length;const upcoming=[...d.services].sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);$("nextServices").innerHTML=upcoming.length?upcoming.map(s=>`<div class="item"><div class="avatar">🗓️</div><div class="meta"><b>${esc(clientName(s.clientId))}</b><small>${esc(s.type)} · ${fmt(s.date)}</small></div><span>›</span></div>`).join(""):`<div class="empty">No hay servicios programados.</div>`}
 function renderCalendar(){const d=state(),now=new Date(),year=now.getFullYear(),month=now.getMonth();$("monthLabel").textContent=now.toLocaleDateString("es-EC",{month:"long",year:"numeric"});const first=new Date(year,month,1).getDay(),days=new Date(year,month+1,0).getDate();let html="";for(let i=0;i<first;i++)html+='<div></div>';for(let day=1;day<=days;day++){const ds=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`,has=d.services.some(s=>s.date===ds),today=day===now.getDate();html+=`<div class="calday ${has?"has":""} ${today?"today":""}">${day}</div>`}$("calendarGrid").innerHTML=html;const arr=d.services.filter(s=>{const dt=new Date(s.date+"T12:00");return dt.getFullYear()===year&&dt.getMonth()===month});$("calendarServices").innerHTML=arr.length?arr.map(s=>`<div class="item"><div class="avatar">🛠</div><div class="meta"><b>${esc(clientName(s.clientId))}</b><small>${fmt(s.date)} · ${esc(s.type)}</small></div></div>`).join(""):`<div class="empty">Sin servicios este mes.</div>`}
